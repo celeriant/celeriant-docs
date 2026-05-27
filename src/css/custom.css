@@ -1,0 +1,49 @@
+/**
+ * Celeriant docs theme. Forest green on warm paper, to match celeriant.io.
+ * Infima sans for body (docs are read long-form); mono for code.
+ */
+@import "@fontsource-variable/jetbrains-mono";
+
+:root {
+  --ifm-color-primary: #096731;
+  --ifm-color-primary-dark: #085c2c;
+  --ifm-color-primary-darker: #085729;
+  --ifm-color-primary-darkest: #064722;
+  --ifm-color-primary-light: #0a7338;
+  --ifm-color-primary-lighter: #0a783b;
+  --ifm-color-primary-lightest: #0c8a44;
+
+  --ifm-code-font-size: 92%;
+  --ifm-font-family-monospace: "JetBrains Mono Variable", ui-monospace,
+    "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  --ifm-background-color: #faf8f2;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-heading-color: #14130f;
+  --ifm-font-color-base: #2c2a24;
+  --ifm-toc-border-color: #e3ded3;
+  --ifm-color-emphasis-300: #cfc9ba;
+
+  --docusaurus-highlighted-code-line-bg: rgba(9, 103, 49, 0.1);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #5fc27e;
+  --ifm-color-primary-dark: #46b869;
+  --ifm-color-primary-darker: #3cb160;
+  --ifm-color-primary-darkest: #2f9050;
+  --ifm-color-primary-light: #78cd93;
+  --ifm-color-primary-lighter: #84d29d;
+  --ifm-color-primary-lightest: #a8dfba;
+
+  --docusaurus-highlighted-code-line-bg: rgba(95, 194, 126, 0.18);
+}
+
+/* Tighten the navbar brand and give code blocks a touch more room. */
+.navbar__title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.menu__link--active {
+  font-weight: 600;
+}

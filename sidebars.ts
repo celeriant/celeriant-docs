@@ -1,0 +1,112 @@
+import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
+
+// Hand-written sidebar: deliberate ordering (Concepts before Guides,
+// "When not to use" pinned high). Diataxis-aligned, TigerBeetle-shaped.
+const sidebars: SidebarsConfig = {
+  docs: [
+    "intro",
+    {
+      type: "category",
+      label: "Introduction",
+      collapsed: false,
+      items: [
+        "introduction/what-is-celeriant",
+        "introduction/when-not-to-use",
+        "introduction/usage-patterns",
+        "introduction/coming-from-kafka",
+        "introduction/coming-from-postgres",
+        "introduction/architecture-overview",
+      ],
+    },
+    {
+      type: "category",
+      label: "Get started",
+      collapsed: false,
+      items: [
+        "get-started/quickstart",
+        "get-started/install-server",
+        "get-started/install-client",
+        "get-started/first-aggregate",
+      ],
+    },
+    {
+      type: "category",
+      label: "Concepts",
+      items: [
+        "concepts/event-sourcing",
+        "concepts/aggregates",
+        "concepts/events-and-the-log",
+        "concepts/reads-and-ordering",
+        "concepts/optimistic-concurrency",
+        "concepts/consistency-boundaries",
+        "concepts/idempotent-writes",
+        "concepts/identity",
+        "concepts/local-first-sync",
+        "concepts/watch",
+        "concepts/schemas",
+        "concepts/encryption",
+        "concepts/audit-chain",
+        "concepts/retention-and-deletion",
+        "concepts/durability-and-safety",
+      ],
+    },
+    {
+      type: "category",
+      label: "Guides",
+      items: [
+        "guides/modeling",
+        "guides/appending-events",
+        "guides/reading-and-replaying",
+        "guides/handling-conflicts",
+        "guides/multi-aggregate-writes",
+        "guides/idempotency",
+        "guides/subscribing",
+        "guides/schemas",
+        "guides/encryption",
+        "guides/verifying-audit-chain",
+        "guides/building-a-projection",
+      ],
+    },
+    {
+      type: "category",
+      label: "Clients",
+      items: [
+        "clients/overview",
+        "clients/dotnet",
+        "clients/rust",
+        "clients/cli",
+      ],
+    },
+    {
+      type: "category",
+      label: "Operations",
+      items: [
+        "operations/deployment-overview",
+        "operations/single-node",
+        "operations/two-node-cluster",
+        "operations/leader-election-s3",
+        "operations/tls-mtls",
+        "operations/configuration",
+        "operations/monitoring",
+        "operations/backup-recovery",
+        "operations/upgrading",
+        "operations/troubleshooting",
+      ],
+    },
+    {
+      type: "category",
+      label: "Reference",
+      items: [
+        "reference/wire-protocol",
+        "reference/request-response",
+        "reference/error-codes",
+        "reference/limits-defaults",
+        "reference/schema-formats",
+        "reference/performance",
+        "reference/glossary",
+      ],
+    },
+  ],
+};
+
+export default sidebars;
