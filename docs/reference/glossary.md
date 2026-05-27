@@ -31,7 +31,7 @@ Terms as Celeriant uses them. Where another database uses the same word differen
 : The set of aggregates a single write commits atomically. In Celeriant that can be several aggregates, as long as they share a shard. See [Consistency boundaries](/concepts/consistency-boundaries).
 
 **Shard**
-: A partition of the keyspace. Aggregates map to shards deterministically (by org, type, or aggregate id, set on the server). Ordering and atomic multi-aggregate writes hold within a shard.
+: A partition of the keyspace owned by one core. An aggregate's shard is `id % shard_count` (a modulo, not a hash), where `id` is the org, type, or aggregate id picked by the routing rule set at cluster init. Ordering and atomic multi-aggregate writes hold within a shard, so the routing rule is how you co-locate aggregates that must be written together.
 
 **Watch**
 : A subscription to change notifications as writes land, per aggregate, type, or org. A watch tells you what changed; you then read the new events. See [Watch and subscribe](/concepts/watch).

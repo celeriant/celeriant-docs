@@ -28,7 +28,7 @@ There is no global order across aggregates, and you do not want one; a global se
 
 ## Aggregates map to shards
 
-Each aggregate is assigned to a shard, a partition of the keyspace owned by one core, deterministically by a routing rule set on the server (by org, by type, or by aggregate id). Ordering holds within a shard, and so does the ability to write several aggregates [atomically](/concepts/consistency-boundaries): the aggregates in one atomic write must share a shard, which means the routing rule decides which aggregates can ever be co-committed.
+Each aggregate is assigned to a shard, a partition of the keyspace owned by one core. Placement is a modulo, not a hash: the server takes one id from the aggregate key, chosen by the routing rule set at cluster init (`org_id`, `aggregate_type_id`, or `aggregate_id`), and computes `id % shard_count` (the shard count defaults to the core count, one shard per core). Because it is a plain `%` on an id you control, you decide which aggregates co-locate. Ordering holds within a shard, and so does the ability to write several aggregates [atomically](/concepts/consistency-boundaries): the aggregates in one atomic write must share a shard, so the routing rule is how you place the aggregates that must be co-committed onto the same one.
 
 ## Cardinality is not your problem
 

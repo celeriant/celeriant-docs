@@ -14,6 +14,12 @@ The textbook case is a transfer: debit one account, credit another, both or neit
 
 ## The boundary is a shard
 
-The aggregates in one atomic write must live on the same [shard](/concepts/aggregates), and the server's routing rule decides which aggregates those are. Route by org and a tenant's aggregates share a shard, so they can be co-committed. Route by aggregate id and every aggregate lands on its own shard, so atomic multi-aggregate writes are effectively off. Choose the routing rule around the invariants you need to enforce together.
+The aggregates in one atomic write must live on the same [shard](/concepts/aggregates), and which aggregates share a shard is something you control, not a hash you hope works out. Placement is a plain modulo: the server takes one id from the aggregate key, chosen by the routing rule set at cluster init, and computes `id % shard_count` (the shard count defaults to the core count, one shard per core). Because it is `%` on an id you choose, placement is predictable, and you co-locate on purpose:
+
+- Route by `org_id` and a tenant's aggregates all share a shard, so anything within a tenant can be co-committed.
+- Route by `aggregate_type_id` and every aggregate of a type lands together, so, for example, all accounts can transfer atomically.
+- Route by `aggregate_id` (the default) and each aggregate gets its own shard, scattering them, so atomic multi-aggregate writes are effectively off.
+
+Choose the routing rule around the invariants you need to enforce together. Co-location is the mechanism, and it is intentional.
 
 This is deliberate: cross-shard atomic writes would reintroduce the distributed transaction Celeriant exists to avoid. If an invariant genuinely spans shards no matter how you route, Celeriant is the wrong tool for that particular write, and you will coordinate it outside the store. See [Atomic multi-aggregate writes](/guides/multi-aggregate-writes).
