@@ -8,7 +8,9 @@ The whole shape in one page. Each piece has its own [concept page](/concepts/eve
 
 ## Thread-per-core
 
-Celeriant is a Rust server where each core owns a [shard](/concepts/aggregates) and runs single-threaded. There is no shared mutable state across cores on the write path, which removes the locking and the concurrency-bug classes that thread-pool databases spend their lives fighting. Aggregates map to shards deterministically by a routing rule set at cluster init.
+Celeriant is a Rust server where each core owns a [shard](/concepts/aggregates) and runs single-threaded. There is no shared mutable state across cores on the write path, which removes the locking and the concurrency-bug classes that thread-pool databases spend their lives fighting.
+
+Aggregates map to shards by `routing_id % num_shards`, where `routing_id` is one of `org_id`, `aggregate_type_id`, or `aggregate_id`, chosen at cluster init. Plain modulus on an id you control: that is deliberate. A hash would scatter aggregates uniformly and rob you of the only mechanism the engine gives you to co-commit. Two aggregates can be written atomically only if they land on the same shard, so you place them there by choosing ids whose modulus matches. Multi-aggregate writes that span shards are rejected outright (`ShardRoutingMultipleShards`, error 9001). See [Consistency boundaries](/concepts/consistency-boundaries).
 
 ## The write path
 

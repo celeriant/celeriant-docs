@@ -56,3 +56,25 @@ Every page that touches writes should be clear which pattern it describes.
 ## Voice
 
 Opinionated, no-bullshit, 20-year veteran. Problem-first; numbers over adjectives; no hedging; no fake balance; colons and semicolons, never em dashes; short paragraphs; blunt endings allowed.
+
+## The load-bearing-claim rule
+
+A doc page lives or dies on a small number of load-bearing claims: "this guarantees X," "the engine does Y in case Z," "the cost is N microseconds." Every load-bearing claim must trace to a mechanism in the code, or it is marketing.
+
+- If the claim is "writes are durable," name the mechanism (`fdatasync` on both nodes before ack).
+- If the claim is "watch never misses," name the mechanism (`ToAggregateVersion` only advances; re-reading from cursor cannot skip).
+- If the claim is a number, name the conditions (batch size, load, hardware).
+
+A page full of true but vague statements is worse than no page — it makes the reader feel they understand without actually transferring the mechanism. Default test: can a reader of this page predict the system's behavior in a failure case the page does not explicitly cover? If yes, the mechanism is there. If no, it is decoration.
+
+## Pre-publish checklist
+
+For every page, before merging:
+
+1. **Personas it serves.** Which of the three? Pages can serve more than one but should not pretend to serve all three; if they do, split.
+2. **Pattern A or B?** If the page touches writes, this is explicit (or the page is general enough not to matter).
+3. **Load-bearing claims.** List them. Each one traces to code (or to another doc page that traces to code).
+4. **One concrete operator-grade insight.** Not "you can write events"; closer to "ids that share `% num_shards` co-locate, and that is the only way to do atomic multi-aggregate writes." If the page does not have at least one of these, it is reference material with no insight density and should be condensed.
+5. **No undefined external names.** No `colorsquare`, no person's name as if they're famous, no internal repo names.
+6. **No em dashes.** Colons, semicolons, periods.
+7. **Failure modes are stated, not implied.** What happens when the dependency is down? When the user gets the input wrong? When the operation is slow? At minimum, what error code do they see and what is the fix.

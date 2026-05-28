@@ -47,7 +47,22 @@ So the rule is mechanical:
 
 You never build a dedup table; the `(clientId, ClientSeq)` pair is the dedup key, and the server owns it.
 
-Two server responses both mean "this sequence is already here," and they differ. `IdempotencyViolationException` (2002) means the prior write is durable: you are done. `InflightDuplicateWriteException` (2013) means it is written but not yet confirmed durable: hold the `ClientSeq`, back off, and retry rather than declaring success, since it could still roll back. The [conflict guide](/guides/handling-conflicts) lays out all four ways a retry resolves.
+Two server responses both mean "this sequence is already here," and they differ. `IdempotencyViolationException` (2002) means the prior write is durable on the leader and replicated: you are done. `InflightDuplicateWriteException` (2013) means it is fsynced locally but replication has not confirmed: hold the `ClientSeq`, back off, and retry rather than declaring success, since a leader failover before confirmation can roll it back. The [conflict guide](/guides/handling-conflicts) lays out all four ways a retry resolves.
+
+## The replay trap
+
+The retry contract above assumes one logical event maps to one stable `ClientSeq`. Process restarts break that assumption if you regenerate sequences from scratch on boot. Two examples:
+
+- A worker pulls events from an outbox, assigns `ClientSeq = nextLocalCounter++`, writes. Crashes mid-batch. On restart, the counter resets, the unwritten events get fresh indexes, and the *already-written* events get re-issued with new indexes too. Double-write.
+- A request handler increments a per-process counter for every retry. The same logical write gets a new `ClientSeq` each attempt, so dedup never fires.
+
+Both have the same fix: `ClientSeq` must be deterministic from the logical event, not from a counter you bump per attempt. Three patterns that work:
+
+1. Derive it from a persistent source — the outbox row's primary key, the upstream event's id, an HTTP `Idempotency-Key` header carried into the write.
+2. Persist the next-`ClientSeq` *with* the data the write is generated from, in the same transaction or storage call. Crash recovery rereads it.
+3. Use the aggregate's own version. If `ClientSeq` mirrors `expectedVersion + N`, then OCC and idempotency move together, and a retried write that lost the race naturally gets a fresh index after re-reading. (This only works for single-writer-per-aggregate workloads.)
+
+The wrong pattern: a runtime-only counter that does not survive a crash.
 
 ## With optimistic concurrency
 

@@ -10,7 +10,14 @@ We call it idempotent retries, not "exactly-once". Exactly-once delivery is a fi
 
 ## How it works
 
-Each writer has a [client id](/concepts/identity), and it must stay stable across restarts or the dedup history does not apply. For a given aggregate, the writer assigns a monotonic `ClientSeq` to each event it produces. When you append with `enforceClientIdempotency: true`, the server tracks the highest client index it has seen for that `(aggregate, client)` pair and rejects anything at or below it.
+The dedup key is the pair `(clientId, ClientSeq)` per aggregate, not `ClientSeq` alone. Two reasons that matters:
+
+- Multiple writers can produce the same `ClientSeq` against the same aggregate (each numbers their own events from 1). Without the `clientId`, the server would deduplicate two distinct writes by mistake; with it, each writer has its own sequence space.
+- Idempotency is enforced per-`(aggregate, clientId)`. The history is scoped to that pair. Change the `clientId` and you start over — which is exactly the silent-corruption bug below.
+
+Each writer holds a [client id](/concepts/identity) that must stay stable across restarts. Treat it like durable service config; if you let it drift (the default new-GUID-per-process pattern is the common mistake), the dedup history does not apply and a retried write *will* land twice. The server cannot detect this, because as far as it knows the two writes came from two different clients.
+
+For a given aggregate, the writer assigns a monotonic `ClientSeq` to each event it produces. With `enforceClientIdempotency: true`, the server tracks the highest `ClientSeq` it has seen for that `(aggregate, clientId)` and rejects anything at or below it.
 
 ```csharp
 await pool.WriteAsync(

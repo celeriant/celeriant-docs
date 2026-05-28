@@ -24,7 +24,14 @@ Each core owns its shard and runs single-threaded. There is no shared mutable st
 
 ## Failover and its dependency
 
-Leader election runs through an S3 conditional write that arbitrates a lease. Failover is a lease handoff, and it is off the write hot path. The honest dependency: a long S3 outage stalls failover, because that is where the lease lives. It does not put acknowledged data at risk; that is already on disk and, during a degraded window, in S3.
+Leader election runs through an S3 conditional write that arbitrates a lease. Failover is a lease handoff, and it is off the write hot path. The honest dependency: a long S3 outage stalls *failover*, because that is where the lease lives. Acknowledged data is not at risk — it is fsynced on the surviving node's disk, and was either fsynced on the second node or written to S3 before the ack. The cluster cannot promote a new leader during an S3 outage, so writes pause until S3 returns or the existing leader recovers; reads keep serving.
+
+Two failure modes are worth distinguishing:
+
+- **Leader dies, S3 healthy.** The follower waits for the lease TTL to expire (`--lease-ttl-secs`, default 30s), then CAS's the lease and takes over. Writes pause for that window. Demand-driven lease renewal on the leader keeps the TTL short when the cluster is healthy.
+- **S3 unreachable, both nodes healthy.** The current leader keeps serving; replication to S3 backs off, replication to the follower continues. If the leader then dies before S3 returns, writes are blocked until either node can reach S3 again.
+
+Clock skew is the third edge: if the nodes drift beyond `--max-clock-drift-ms`, lease renewal can flap. NTP is not optional, it is on the dependency list.
 
 ## Tamper evidence and encryption
 

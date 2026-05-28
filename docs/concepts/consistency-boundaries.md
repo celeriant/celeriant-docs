@@ -4,7 +4,7 @@ title: Consistency boundaries
 
 # Consistency boundaries
 
-A consistency boundary is the set of aggregates a single write commits atomically: all of them land, or none do. In Celeriant that boundary can be more than one aggregate, which is unusual and useful.
+A consistency boundary is the set of aggregates a single write commits atomically: all of them land, or none do. Most event stores draw this at one aggregate. Celeriant draws it at one shard, which can hold many aggregates, and the routing rule is how you decide which ones.
 
 ## Beyond the single aggregate
 
@@ -14,12 +14,14 @@ The textbook case is a transfer: debit one account, credit another, both or neit
 
 ## The boundary is a shard
 
-The aggregates in one atomic write must live on the same [shard](/concepts/aggregates), and which aggregates share a shard is something you control, not a hash you hope works out. Placement is a plain modulo: the server takes one id from the aggregate key, chosen by the routing rule set at cluster init, and computes `id % shard_count` (the shard count defaults to the core count, one shard per core). Because it is `%` on an id you choose, placement is predictable, and you co-locate on purpose:
+A single atomic write spans one shard. That is the line. Cross-shard atomic writes would reintroduce the distributed transaction this database exists to avoid, so the engine rejects them outright (error 9001, `ShardRoutingMultipleShards`).
 
-- Route by `org_id` and a tenant's aggregates all share a shard, so anything within a tenant can be co-committed.
-- Route by `aggregate_type_id` and every aggregate of a type lands together, so, for example, all accounts can transfer atomically.
-- Route by `aggregate_id` (the default) and each aggregate gets its own shard, scattering them, so atomic multi-aggregate writes are effectively off.
+The good news: which aggregates share a shard is something you decide. Placement is `id % shard_count`, where `id` is one part of the aggregate key chosen by the routing rule set at cluster init. Plain `%` on an id you control, not a hash that scrambles things. So you place co-committed aggregates onto the same shard on purpose.
 
-Choose the routing rule around the invariants you need to enforce together. Co-location is the mechanism, and it is intentional.
+Pick the rule that matches the invariants you actually enforce together:
 
-This is deliberate: cross-shard atomic writes would reintroduce the distributed transaction Celeriant exists to avoid. If an invariant genuinely spans shards no matter how you route, Celeriant is the wrong tool for that particular write, and you will coordinate it outside the store. See [Atomic multi-aggregate writes](/guides/multi-aggregate-writes).
+- **`org_id`** — every aggregate inside one tenant lands on one shard. Bank-style transfers between accounts in the same org: trivial. Cost: that tenant's writes serialise on one core. Right call when invariants are per-tenant and tenant concurrency is bounded.
+- **`aggregate_type_id`** — every aggregate of a type lands on one shard. Right call when atomic writes span aggregates of the same type and you want all of that type together for locality.
+- **`aggregate_id`** — even distribution by aggregate id. Right call when most writes are single-aggregate and you want the cores. Multi-aggregate writes still work, but you have to *engineer* the id space so the aggregates that need to commit together hash to the same shard: `aggregate_id = 1000` and `aggregate_id = 1004` on a 4-shard cluster both land on shard 0, so they can be co-committed. If you skip this and pick ids at random, multi-aggregate writes will fail with 9001.
+
+Choosing the rule is the architectural decision. Choosing the ids is the operational discipline that follows from it. See [Atomic multi-aggregate writes](/guides/multi-aggregate-writes) for the failure mode and the fix. If an invariant genuinely spans shards no matter how you route, this is the wrong tool for that particular write; coordinate it outside the store.

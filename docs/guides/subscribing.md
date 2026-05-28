@@ -30,7 +30,7 @@ while (true)
 }
 ```
 
-Scope the watch with `Orgs`, `AggregateTypes`, or `Aggregates`, and filter by `OperationTypes`. A higher `RequestedLatency` lets the server coalesce bursts into fewer notifications; it never drops a change, because the notification's `ToAggregateVersion` only advances, so re-reading from your cursor cannot skip a batch.
+Scope the watch with `Orgs`, `AggregateTypes`, or `Aggregates`, and filter by `OperationTypes`. The scope must line up with the cluster's [routing rule](/concepts/aggregates): if the cluster routes by `org_id`, you need an `Orgs` filter; if by `aggregate_type_id`, an `AggregateTypes` filter; if by `aggregate_id`, the explicit `Aggregates`. Cross the wires and the server returns error 9002 (`IncompatibleFilters`). A higher `RequestedLatency` lets the server coalesce bursts into fewer notifications; it never drops a change, because the notification's `ToAggregateVersion` only advances, so re-reading from your cursor cannot skip a batch. Exceed the server's `--watch-max-requested-latency-ms` and you get 8001 (`LatencyTooHigh`).
 
 ## Catch up, then follow
 

@@ -34,8 +34,41 @@ await pool.WriteAsync(new WriteRequest
 
 ## The constraint
 
-Every aggregate in one request must live on the same [shard](/concepts/consistency-boundaries). Whether two specific aggregates do is decided by the server's routing rule. If you co-commit across an org's aggregates, route by `org_id` so they share a shard. A request whose aggregates span shards is rejected; that is not a missing feature, it is the line that keeps writes free of distributed transactions.
+Every aggregate in one request must live on the same [shard](/concepts/consistency-boundaries). The engine checks this at the front door, *before* validating events or guards: it computes the routed shard for each aggregate key and bails the entire request if more than one shard is involved. You get error **9001 `ShardRoutingMultipleShards`**.
+
+Whether two aggregates share a shard is decided by `routing_id % num_shards`, where `routing_id` is one of `org_id`, `aggregate_type_id`, or `aggregate_id` per the rule set at cluster init. Not configurable per request; this is a cluster-wide decision baked in at startup.
+
+## Picking the routing rule for the invariant
+
+| Invariant you co-commit | Pick this rule | What you give up |
+|---|---|---|
+| Two aggregates in the same org (transfer between accounts in one tenant) | `org_id` | Per-tenant writes serialise on one shard |
+| Two aggregates of the same type, across orgs | `aggregate_type_id` | That type's writes serialise on one shard |
+| Independent, single-aggregate writes mostly | `aggregate_id` (default) | Multi-aggregate writes only work between *deliberately co-located* ids |
+
+## Co-locating on `aggregate_id` routing
+
+If you are on the default rule and need a multi-aggregate write to land, you cannot pick the aggregates at random. You have to assign ids such that the modulo lines up:
+
+```
+num_shards = 4
+account_A.aggregate_id = 1000   // 1000 % 4 = 0  → shard 0
+account_B.aggregate_id = 1004   // 1004 % 4 = 0  → shard 0
+```
+
+A write across A and B is accepted. Pick `1001` for B and you get error 9001. So: if you ever expect to co-commit two aggregates, allocate their ids together, off a base value that mods to the shard you want. The same logic applies to id generators; a UUID-based allocator will scatter aggregates uniformly and break this entirely.
+
+If you cannot guarantee co-location at allocation time, you have the wrong rule. Re-route by `org_id` or `aggregate_type_id`.
+
+## Troubleshooting error 9001
+
+`ShardRoutingMultipleShards (9001)` means the aggregate keys in the request hashed to different shards. Two reasons it fires:
+
+1. Your routing rule does not match your invariant (writing across orgs while routing by `org_id`, etc.). Re-route the cluster.
+2. You are on `aggregate_id` routing and the ids do not share a modulus. Re-allocate ids or re-route.
+
+This is *not* an OCC conflict. Retrying with the same keys will fail forever.
 
 ## Conflicts work the same way
 
-A multi-aggregate write conflicts if any of its guards is stale. Wrap it in the same [read-decide-write loop](/guides/handling-conflicts): on `WriteOccException`, re-read every aggregate's version, re-decide, and resubmit.
+A multi-aggregate write conflicts if any of its guards is stale. Wrap it in the same [read-decide-write loop](/guides/handling-conflicts): on `WriteOccException`, re-read every aggregate's version, re-decide, and resubmit. The entire batch is rolled back atomically on any guard failure; you never have to clean up a half-applied write.

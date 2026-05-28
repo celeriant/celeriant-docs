@@ -26,9 +26,25 @@ Every option is both a command-line flag and an environment variable: `--data-ro
 | `--advertised-client-address` | derived | What clients are told to reach; set behind a proxy or LB. |
 | `--advertised-replication-address` | derived | What the peer is told to reach. |
 | `--heartbeat-interval-ms` | `500` | Leader heartbeat cadence. |
-| `--heartbeat-lease-duration-ms` | `1500` | Silence before the follower's lease expires. |
+| `--heartbeat-timeout-ms` | = interval | Per-heartbeat soft timeout. Set below `--heartbeat-lease-duration-ms`. |
+| `--heartbeat-hard-timeout-multiplier` | `4` | Hard cap for kernel-blocked kTLS sends that ignore the soft timeout. |
+| `--heartbeat-lease-duration-ms` | `1500` | Silence before the follower's heartbeat lease expires. |
+| `--heartbeat-starve-threshold-ms` | `500` | While a heartbeat is in flight longer than this, reject new writes with `FollowerHeartbeatStarved` so the NIC has bandwidth for the ack. `0` disables. |
 | `--s3-lease-duration-ms` | `30000` | Durable leader-lease TTL. See [leader election](/operations/leader-election-s3). |
-| `--max-clock-drift-ms` | `500` | Slack added to lease checks. |
+| `--max-clock-drift-ms` | `500` | Slack added to lease checks. NTP is required; flapping elections almost always trace to drift. |
+
+## Write pipeline batching
+
+These three knobs control how aggressively the leader amortises fsync and replication. Wider windows = more throughput per write, more latency per individual write. Tune to your write-latency SLO.
+
+| Flag | Default | Notes |
+| --- | --- | --- |
+| `--fsync-delay-us` | `17000` | Window during which incoming writes are coalesced into one fsync. |
+| `--replication-delay-us` | `17000` | Same idea, for the replication send. |
+| `--s3-replication-delay-us` | `500000` | Same idea, while in S3 fallback. Larger to keep S3 cost down and avoid starving lease renewal. |
+| `--replication-rollback-cooldown-us` | `500000` | After a replication rollback, reject new writes with `ReplicationBackpressure` for this long to drain the pending queue and prevent rollback storms. |
+| `--s3-max-concurrent-fallback-uploads` | `128` | Cap on parallel S3 fallback uploads across all shards. Lower for MinIO or local-LAN where saturation can starve lease renewal. |
+| `--internode-max-request-size` | `64 MiB` | Cap on a single replication batch payload. Also bounds a single promotion catch-up batch. |
 
 ## S3
 
@@ -70,3 +86,10 @@ Every option is both a command-line flag and an environment variable: `--data-ro
 | `--max-requested-latency-ms` | `2000` | Cap on a [watch](/concepts/watch) latency request. |
 | `--metrics-enabled` | `true` | Prometheus `/metrics` and `/health`. |
 | `--metrics-port` | `9090` | See [Monitoring](/operations/monitoring). |
+
+## Tuning notes
+
+- **Write throughput vs latency.** `--fsync-delay-us` and `--replication-delay-us` are the main knobs. The defaults (17 ms each) target high throughput. If your SLO is single-digit-ms p99, lower both to your latency budget minus your fsync time minus network RTT. You will give up throughput.
+- **S3 fallback windows hurt.** While the follower is unreachable, every write pays `--s3-replication-delay-us` (default 500 ms) on the ack. This is intentional — bigger batches mean fewer S3 PUTs. If your follower is flapping briefly, the cluster recovers; if it is down for hours, plan for elevated write latency and budget S3 costs accordingly.
+- **NTP is required.** `--max-clock-drift-ms` is slack, not the budget. If your nodes drift more than this between renewals, lease checks fail and you get election flaps. Check `chronyc tracking` on both nodes before opening a bug.
+- **`reserve_coordinator_shard`** isolates shard 0 for heartbeat/schema work on dense-core boxes. Useful if you see one shard hot from coordination traffic alone.

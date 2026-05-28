@@ -14,9 +14,11 @@ That split is deliberate. The notification stream stays small and cheap to fan o
 
 ## Scope and latency
 
-You scope a watch to what you care about: a single aggregate, an aggregate type, or a whole org. You also set a latency tolerance; a higher tolerance lets the server coalesce bursts of changes into fewer notifications, trading immediacy for less chatter. Coalescing merges notifications, it does not drop changes: the batch-index range always spans everything written since you last read, so re-reading by range never misses an event.
+You scope a watch by `Orgs`, `AggregateTypes`, or `Aggregates`. The scope is not free: it has to match the cluster's [routing rule](/concepts/aggregates), because a watch runs on a shard and the shard owns the aggregates that mod to it. If routing is by `org_id`, your watch must name at least one org; if by `aggregate_type_id`, an aggregate type; if by `aggregate_id`, the specific aggregates. Mismatch a filter to the rule and you get error 9002 (`IncompatibleFilters`). This is enforced, not advised.
 
-A watch that spans more than one shard fans out under the hood; the client library opens a connection per shard and merges the results, so you see one stream.
+`RequestedLatency` is a cap, not a deadline. The server coalesces bursts of changes inside that window into fewer notifications, trading immediacy for less chatter. Coalescing merges; it never drops. The notification's `ToAggregateVersion` only advances, so re-reading from your cursor never misses an event. Treat this as eventually consistent with a bounded lag: between a write committing and the notification firing, there is a real (sub-window) gap. If you need "the user sees the write the instant it happens" semantics, do not wait on a watch — read the aggregate inline.
+
+A watch that spans more than one shard fans out under the hood; the client library opens a connection per shard and merges the results, so you see one stream. The server enforces a max latency via `--watch-max-requested-latency-ms`; exceed it and you get 8001 (`LatencyTooHigh`).
 
 ## Catch up, then follow
 

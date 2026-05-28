@@ -8,7 +8,7 @@ hide_title: true
 
 An append-only event store for the write side of CQRS. Distributed, strictly ordered, built in Rust.
 
-Celeriant enforces business invariants at write time across many streams: optimistic concurrency, idempotent retries, per-aggregate ordering, and cluster-wide durability. 400,000 durable writes a second on two nodes, every write fsync'd on both before the ack. See [Performance](/reference/performance).
+Celeriant enforces business invariants at write time across many streams: optimistic concurrency, idempotent retries, per-aggregate ordering, and cluster-wide durability. 325,000 durable writes a second across 36,000 connections, p99 201 ms end-to-end over mTLS, every write fsync'd on both nodes before the ack. See [Performance](/reference/performance).
 
 ## Start here
 

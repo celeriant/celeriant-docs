@@ -8,7 +8,9 @@ Celeriant is narrow on purpose. Adopting the wrong database is expensive, so her
 
 ## You have one writer per aggregate
 
-No contention means you do not need optimistic concurrency, which is most of what Celeriant exists to provide. Kafka with an outbox and CDC (Debezium) will serve you fine. Reach for it.
+If each aggregate has exactly one writer (one device, one user session, one isolated worker), there is no contention to arbitrate, and OCC — the bulk of what this database provides — is dead weight. A log or queue with an outbox suffices.
+
+Be honest about whether you actually have this. "One service writes to orders" is not the same as "one writer per aggregate" — if that service runs N replicas, or restarts mid-batch, you have concurrent writers on the same aggregate and you need OCC. The single-writer case is real for per-device or per-user streams, edge clients, and isolated worker queues. It is rare for backend services that own a shared entity.
 
 ## You need a query database
 

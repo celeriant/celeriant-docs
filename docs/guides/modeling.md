@@ -17,7 +17,13 @@ Aim for the boundary that makes your common write a single-aggregate, conditiona
 
 ## Routing and co-commit
 
-If two aggregate types must sometimes change together atomically (accounts in a transfer), they must land on the same shard. The server's `--routing-rule` decides that: routing by `org_id` keeps a tenant's aggregates together; routing by `aggregate_id` scatters them. Choose the routing rule for the invariants you co-commit. See [Consistency boundaries](/concepts/consistency-boundaries).
+If two aggregates must sometimes change together atomically (accounts in a transfer, a hold and a draft on one customer), they must land on the same shard. The server's `--routing-rule` decides which `id` is fed into `id % num_shards`:
+
+- `org_id`: a tenant's aggregates all share a shard. Default choice when invariants are per-tenant.
+- `aggregate_type_id`: a type's aggregates all share a shard. Useful if you co-commit across types of the same kind.
+- `aggregate_id`: each aggregate is routed independently. You can still co-commit, but only between ids you have deliberately chosen so `a % shards == b % shards`. Random UUIDs will scatter and break this.
+
+Pick the rule that lines up with the invariants you actually enforce together, *then* design your id allocator to match. The trap people fall into: keep the default `aggregate_id` routing, allocate ids with UUIDs, then discover months later that no multi-aggregate write ever lands. See [Consistency boundaries](/concepts/consistency-boundaries) and [Atomic multi-aggregate writes](/guides/multi-aggregate-writes).
 
 ## Versioning event types
 
