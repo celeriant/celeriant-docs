@@ -10,6 +10,10 @@ You are probably not event sourcing yet, even if you have a lot of events flying
 
 The outbox is there to paper over one flaw: you cannot atomically update your state and publish an event to two different systems. The outbox makes the event part of the local transaction, and CDC makes the publish eventually happen. It works, and it is a pile of infrastructure (outbox tables, Debezium, Kafka Connect, a dead-letter queue) whose entire job is to keep your state and your events from drifting apart.
 
+## And it still does not enforce invariants
+
+The outbox keeps state and events aligned inside one service. Across services it does not help. A service validates the next event against state assembled from topics it consumes, and those topics lag. Two services can clear validation against a stale view at the same time, both append, and one of them silently violates an invariant. No amount of outbox tuning fixes this. The log is unconditional by design.
+
 ## Celeriant flips the order
 
 The event is the write. You append the event to Celeriant as the source of truth, with a [conditional write](/concepts/optimistic-concurrency) that enforces your invariant, and you project state from the log afterward, into the same Postgres you already run. There is no second write to keep in sync, so there is no outbox, no CDC, and no DLQ. The dual-write problem does not exist when there is only one write.
@@ -25,9 +29,9 @@ The event is the write. You append the event to Celeriant as the source of truth
 | Confluent Schema Registry (open source); broker-side enforcement is a paid feature | [Schema validation](/concepts/schemas) enforced on the server, included |
 | Dead-letter queue for poison messages | Malformed events rejected at write time by schema validation; they never enter the log |
 
-## This is a real model shift
+## A model shift, not a library swap
 
-Bigger than it looks. You stop thinking state-first and start thinking events-first: the event is what happened, and state is a view you rebuild from events. If your team has not event-sourced before, read [Event sourcing and CQRS](/concepts/event-sourcing) first. This is a genuine shift in how you model your domain, not a library swap. It is also worth knowing there are [two ways to use Celeriant](/introduction/usage-patterns) before you pick one.
+Bigger than it looks. You stop thinking state-first and start thinking events-first: the event is what happened, and state is a view you rebuild from events. If your team has not event-sourced before, read [Event sourcing and CQRS](/concepts/event-sourcing) first.
 
 ## What stays on Kafka
 

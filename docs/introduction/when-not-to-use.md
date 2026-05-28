@@ -6,15 +6,13 @@ title: When not to use Celeriant
 
 Celeriant is narrow on purpose. Adopting the wrong database is expensive, so here is when it is the wrong tool. If any of these is you, use something else and do not feel bad about it.
 
-## You have one writer per aggregate
+## You only need streaming
 
-If each aggregate has exactly one writer (one device, one user session, one isolated worker), there is no contention to arbitrate, and OCC — the bulk of what this database provides — is dead weight. A log or queue with an outbox suffices.
+You might have two services; for example, an order service, and an SMS service. Events only go one way, and they are not causally coupled in any way. If nothing depends on shared state and you never need a conditional write, you need a log or a queue, not an event store.
 
-Be honest about whether you actually have this. "One service writes to orders" is not the same as "one writer per aggregate" — if that service runs N replicas, or restarts mid-batch, you have concurrent writers on the same aggregate and you need OCC. The single-writer case is real for per-device or per-user streams, edge clients, and isolated worker queues. It is rare for backend services that own a shared entity.
+## You need SQL and/or OLAP
 
-## You need a query database
-
-Celeriant is the write side. Reads are per-aggregate, by offset and event type. There is no SQL, no ad-hoc query, no secondary index you can query across aggregates. Project the log into Postgres or your read store of choice and query there. See [Building a read model](/guides/building-a-projection).
+Celeriant is the write side. Reads are per-aggregate, by offset and event type. It is row based. There is no SQL, no ad-hoc query, no secondary index you can query across aggregates. Use a RDBMS, DuckDb or a data lake, etc.
 
 ## You need transactional reads across aggregates
 
@@ -22,14 +20,7 @@ This one needs nuance, because "eventually consistent" oversells the problem. A 
 
 What you do not get is a single transactional snapshot across many aggregates, the way a `SELECT ... JOIN` inside one transaction does on an RDBMS. If your reads genuinely need that cross-entity transactional consistency, an RDBMS is the simpler tool. Use one. See [Building a read model](/guides/building-a-projection) for the catch-up pattern.
 
-## You only need streaming
-
-If nothing depends on shared state and you never need a conditional write, you need a log or a queue, not an event store. Kafka, NATS, or Redis Streams are the right tools. Keep using them.
-
 ## You need stability today
 
 Celeriant is pre-1.0. The wire format can still change between releases, and there are no backward-compatibility guarantees yet. If you cannot ride breaking changes, run [EventStoreDB](https://www.eventstore.com/) or [Marten](https://martendb.io/) now and revisit Celeriant later.
 
----
-
-Still here? Good. Start with the [Quickstart](/get-started/quickstart).

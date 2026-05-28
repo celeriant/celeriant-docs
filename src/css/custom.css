@@ -36,7 +36,28 @@
   --ifm-color-primary-lighter: #84d29d;
   --ifm-color-primary-lightest: #a8dfba;
 
+  --ifm-background-color: #1a1916;
+  --ifm-background-surface-color: #222019;
+  --ifm-heading-color: #f3eedf;
+  --ifm-font-color-base: #d8d3c2;
+  --ifm-toc-border-color: #2f2c25;
+  --ifm-color-emphasis-300: #3a362d;
+
+  --ifm-navbar-background-color: #222019;
+  --ifm-navbar-link-color: #ece7d6;
+  --ifm-navbar-link-hover-color: var(--ifm-color-primary);
+
+  --ifm-footer-background-color: #222019;
+  --ifm-footer-color: #d8d3c2;
+  --ifm-footer-link-color: #ece7d6;
+  --ifm-footer-title-color: #f3eedf;
+
   --docusaurus-highlighted-code-line-bg: rgba(95, 194, 126, 0.18);
+}
+
+[data-theme="dark"] .navbar__title,
+[data-theme="dark"] .navbar__brand {
+  color: var(--ifm-navbar-link-color);
 }
 
 /* Tighten the navbar brand and give code blocks a touch more room. */

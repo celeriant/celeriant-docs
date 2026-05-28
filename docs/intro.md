@@ -15,7 +15,7 @@ Celeriant enforces business invariants at write time across many streams: optimi
 - **[Quickstart](/get-started/quickstart):** run a node and append your first event in five minutes.
 - **[What is Celeriant](/introduction/what-is-celeriant):** the problem it solves, and how.
 - **[When not to use it](/introduction/when-not-to-use):** read this before you adopt anything.
-- **[Concepts](/concepts/event-sourcing):** the model: aggregates, ordering, concurrency, watch.
+- **[Concepts](/concepts/event-sourcing):** CQRS, aggregates, events.
 
 :::info Pre-release
 Celeriant is pre-1.0. The wire format can still change between releases, and the open-source binaries ship with the Apache-2.0 release. If you need stability today, see [when not to use it](/introduction/when-not-to-use).
