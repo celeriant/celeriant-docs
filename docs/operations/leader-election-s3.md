@@ -31,6 +31,8 @@ When the leader disappears, the follower waits out the lease (up to `--s3-lease-
 
 A leader that cannot renew its lease fences itself and stops accepting writes, so you never get two writers. The lease, not the network, is the source of truth for who may write.
 
+The fence is what guarantees there are never two writers; it is not a promise that an S3-only outage immediately stops the incumbent. A healthy leader-to-follower link sustains the leader's lease via heartbeats, so a leader that loses **only** S3 (follower still reachable) keeps serving — see "[the leader keeps serving](/concepts/durability-and-safety)" during an S3 outage. The self-fence is what fires when the leader can renew *neither* via S3 *nor* by heartbeat (i.e. it is isolated from both S3 and the follower), allowing a new leader to take over safely.
+
 A long S3 outage stalls failover, because the lease lives in S3. It does not endanger acknowledged data, which is already on disk.
 
 ## What S3 needs

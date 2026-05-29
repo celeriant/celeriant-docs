@@ -23,6 +23,8 @@ A read can narrow what comes back:
 
 Large aggregates page. A read returns a cursor (the next batch index); pass it back to continue. You stream a million-event aggregate in bounded memory instead of loading it whole.
 
+A read pages when the response would exceed the negotiated maximum response size (`--max-response-size`), not at a fixed batch count. (`--list-page-size` bounds the *list* APIs, not single-aggregate reads.) Always follow the cursor until it is absent rather than assuming a page size.
+
 ## Catching up and following
 
 A projection reads from its last processed offset to catch up, then [watches](/concepts/watch) for new events and follows the live tail. Combined, that is how a read model stays current; see [Building a read model](/guides/building-a-projection).

@@ -28,7 +28,7 @@ Leader election runs through an S3 conditional write that arbitrates a lease. Fa
 
 Two failure modes are worth distinguishing:
 
-- **Leader dies, S3 healthy.** The follower waits for the lease TTL to expire (`--lease-ttl-secs`, default 30s), then CAS's the lease and takes over. Writes pause for that window. Demand-driven lease renewal on the leader keeps the TTL short when the cluster is healthy.
+- **Leader dies, S3 healthy.** The follower waits for the lease TTL to expire (`--s3-lease-duration-ms`, 30s by default), then CAS's the lease and takes over. Writes pause for that window. Demand-driven lease renewal on the leader keeps the TTL short when the cluster is healthy.
 - **S3 unreachable, both nodes healthy.** The current leader keeps serving; replication to S3 backs off, replication to the follower continues. If the leader then dies before S3 returns, writes are blocked until either node can reach S3 again.
 
 Clock skew is the third edge: if the nodes drift beyond `--max-clock-drift-ms`, lease renewal can flap. NTP is not optional, it is on the dependency list.
