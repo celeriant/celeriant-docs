@@ -6,7 +6,7 @@ title: Getting started
 
 ## Local dev stack (Docker)
 
-The fastest way to get a queue node + Prometheus + Loki + Grafana running locally:
+Fastest path to a queue node plus Prometheus, Loki, and Grafana running on localhost:
 
 ```bash
 git clone https://github.com/celeriant/celeriant-queue
@@ -14,7 +14,7 @@ cd celeriant-queue/deploy/local-cluster
 docker compose up -d --build
 ```
 
-First build is slow (full Rust release build). Subsequent rebuilds use Docker layer cache.
+First build is slow. Full Rust release build of celeriant-queue and all celeriant-db crates. Subsequent rebuilds use Docker layer cache.
 
 | Service | URL |
 |---|---|
@@ -24,7 +24,7 @@ First build is slow (full Rust release build). Subsequent rebuilds use Docker la
 | Grafana queue dashboard | `http://localhost:3001/d/celeriant-queue` |
 | Prometheus | `http://localhost:9091` |
 
-The compose file assumes `celeriant-queue/` and `celeriant-db/` are cloned under the same parent dir (the queue depends on celeriant-db crates via workspace path).
+The compose file assumes `celeriant-queue/` and `celeriant-db/` are cloned under the same parent dir. The queue depends on celeriant-db crates via workspace path.
 
 ## Bare metal
 
@@ -36,7 +36,7 @@ cargo build --release -p celeriant_queue
   --queue-port 10100
 ```
 
-The binary accepts Celeriant's entire flag surface (TLS, S3, replication, etc.) plus three queue-specific flags:
+The binary accepts the entire Celeriant flag surface (TLS, S3, replication) plus three queue-specific flags:
 
 | Flag | Default | Purpose |
 |---|---|---|
@@ -46,7 +46,7 @@ The binary accepts Celeriant's entire flag surface (TLS, S3, replication, etc.) 
 
 ## First produce / consume
 
-There is no CLI yet. The canonical wire-call shape lives in `celeriant_queue_integration_tests/tests/common/mod.rs::rpc`. A minimal Rust example:
+No CLI yet. The canonical wire-call shape lives in `celeriant_queue_integration_tests/tests/common/mod.rs::rpc`. Minimal Rust example:
 
 ```rust
 use celeriant_queue_core::queue_config::QueueConfig;
@@ -112,8 +112,8 @@ For the full wire surface (Ack, Nack, Extend, Stats, TrimQueue, SnapshotNow, Ass
 
 The Grafana dashboard (`celeriant-queue.json`) renders:
 
-- **Throughput** — produced / consumed / acked / nacked / parked / expired-leases per second.
-- **Per-queue depth + in-flight** — labelled by `(org_id, queue_id)`.
-- **Operator health** — parked / blocked / ack-hole-ranges per queue. The blocked panel turns red on the first non-zero — a head-of-line block means trim is pinned and you need to send Unblock.
-- **Tail position** — monotonic `message_tail_version`, slope = produce rate.
-- **Snapshot oversize skips** — non-zero = a queue with pathological live-lease cardinality.
+- **Throughput.** Produced, consumed, acked, nacked, parked, expired-leases per second.
+- **Per-queue depth + in-flight.** Labelled by `(org_id, queue_id)`.
+- **Operator health.** Parked, blocked, ack-hole-ranges per queue. The blocked panel turns red on the first non-zero value. A head-of-line block means trim is pinned. Send Unblock.
+- **Tail position.** Monotonic `message_tail_version`. Slope is the produce rate.
+- **Snapshot oversize skips.** Non-zero means a queue with pathological live-lease cardinality.
