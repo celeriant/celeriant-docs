@@ -28,10 +28,12 @@ Leader election runs through an S3 conditional write that arbitrates a lease. Fa
 
 Two failure modes are worth distinguishing:
 
-- **Leader dies, S3 healthy.** The follower waits for the lease TTL to expire (`--s3-lease-duration-ms`, 30s by default), then CAS's the lease and takes over. Writes pause for that window. Demand-driven lease renewal on the leader keeps the TTL short when the cluster is healthy.
+- **Leader dies, S3 healthy.** The follower's heartbeat lease expires within `--heartbeat-lease-duration-ms` (1.5s by default), then it CAS's the S3 lease, which has been sitting expired through normal operation, and takes over. Writes pause for that window, around 1.3s in practice; reads keep serving. The 30s `--s3-lease-duration-ms` only bounds the cold cases (fresh boot, just-promoted) where there is no live heartbeat carrying authority. See [leader election](/operations/leader-election-s3).
 - **S3 unreachable, both nodes healthy.** The current leader keeps serving; replication to S3 backs off, replication to the follower continues. If the leader then dies before S3 returns, writes are blocked until either node can reach S3 again.
 
 Clock skew is the third edge: if the nodes drift beyond `--max-clock-drift-ms`, lease renewal can flap. NTP is not optional, it is on the dependency list.
+
+None of these claims are asserted on faith. Every failure mode above is exercised under load by the chaos harness, including hard-kill failover, the zombie-leader (SIGSTOP past the lease), asymmetric partitions, and the simultaneous loss of both durable copies, each checked against safety invariants on the on-disk log. See [Correctness testing](/concepts/correctness-testing).
 
 ## Tamper evidence and encryption
 

@@ -16,24 +16,28 @@ The lease lives at a known key in the bucket. A node acquires or renews it with 
 
 Because the swap is conditional, two nodes cannot both win. The store that lies about conditional writes breaks this, which is why the bucket must genuinely support them.
 
-## Two clocks, two jobs
+## Two leases, two jobs
 
-There are two independent timers, and it helps to keep them straight:
+There are two independent leases. The whole failover story falls out of keeping them straight:
 
-- **Heartbeat** (interval 500ms, lease 1500ms by default): the leader heartbeats the follower over the replication connection. It is the fast path for detecting that the follower has fallen behind or gone away.
-- **S3 lease** (30s TTL by default): the durable, partition-proof record of who is leader. It is what survives a total loss of inter-node connectivity.
+- **Heartbeat lease** (`--heartbeat-lease-duration-ms`, 1500ms; interval 500ms): the leader heartbeats the follower over the replication connection, and every heartbeat carries the follower's lease forward. This is the live authority in normal operation. While heartbeats arrive, the follower knows the leader is alive and stays a follower.
+- **S3 lease** (`--s3-lease-duration-ms`, 30s by default): the durable, partition-proof record of who may write. It is the arbiter for the cold cases the heartbeat cannot cover, and what survives a total loss of inter-node connectivity.
 
-The heartbeat keeps the cluster tight in the common case; the S3 lease is the backstop that prevents split-brain when the network partitions.
+The part the front page never says: in healthy two-node operation the leader does not renew the S3 lease at all. The heartbeat carries authority, so the S3 lease object just sits there long expired. The leader only writes S3 when it has to prove authority without the follower, which is exactly when it matters. Steady-state leasing therefore costs effectively nothing in S3 requests.
 
 ## Failover and split-brain
 
-When the leader disappears, the follower waits out the lease (up to `--s3-lease-duration-ms`, 30 s by default), then takes it via CAS and starts accepting writes. That wait is the leader-failover write-outage window: reads from the follower continue throughout, writes pause until it takes the lease. The default trades failover speed for tolerance of S3 latency; tune it to your priorities. Note this is governed by the S3 lease, not the faster heartbeat, which detects a struggling follower rather than a dead leader.
+Failover is bounded by the heartbeat lease, not the S3 lease. When the leader dies, heartbeats stop, the follower's heartbeat lease expires within `--heartbeat-lease-duration-ms` (1.5s by default), and the follower challenges the S3 lease with a CAS. Because that S3 lease has been sitting expired through normal operation, the CAS wins immediately and the follower starts accepting writes. In practice that is around 1.3s, not 30s. Reads from the follower continue throughout; only writes pause, and only for that window.
+
+The 30s S3 TTL bounds failover only in the cold cases the heartbeat cannot cover: a fresh boot with no heartbeat history, or the brief window right after a promotion before heartbeats are flowing. Outside those, the heartbeat lease times failover. Lower `--heartbeat-lease-duration-ms` for faster detection at the cost of tolerance for replication-link jitter.
 
 A leader that cannot renew its lease fences itself and stops accepting writes, so you never get two writers. The lease, not the network, is the source of truth for who may write.
 
 The fence is what guarantees there are never two writers; it is not a promise that an S3-only outage immediately stops the incumbent. A healthy leader-to-follower link sustains the leader's lease via heartbeats, so a leader that loses **only** S3 (follower still reachable) keeps serving — see "[the leader keeps serving](/concepts/durability-and-safety)" during an S3 outage. The self-fence is what fires when the leader can renew *neither* via S3 *nor* by heartbeat (i.e. it is isolated from both S3 and the follower), allowing a new leader to take over safely.
 
 A long S3 outage stalls failover, because the lease lives in S3. It does not endanger acknowledged data, which is already on disk.
+
+The fencing rule is the one thing in this design that absolutely cannot be wrong, so it is attacked directly: the chaos harness SIGSTOPs the leader for longer than its lease, lets the follower promote, then resumes the old leader and asserts no two-writer divergence ever reaches the durable log. See [Correctness testing](/concepts/correctness-testing).
 
 ## What S3 needs
 

@@ -48,6 +48,7 @@ const sidebars: SidebarsConfig = {
         "concepts/audit-chain",
         "concepts/retention-and-deletion",
         "concepts/durability-and-safety",
+        "concepts/correctness-testing",
       ],
     },
     {

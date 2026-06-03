@@ -12,7 +12,7 @@ A two-node cluster upgrades with no read downtime by taking one node at a time. 
 2. Stop the **follower**. The leader keeps serving; while the follower is down it replicates to S3, so writes stay durable (at higher latency).
 3. Replace the follower's binary and start it. It reads the lease, pulls what it missed, and rejoins.
 4. Wait until it has caught up and replication pressure is back to zero.
-5. Now stop the **leader**. The follower takes the lease and becomes leader once the old lease expires, up to the S3 lease TTL (`--s3-lease-duration-ms`, 30 s by default). This is the one write pause in the procedure; reads continue on the follower throughout.
+5. Now stop the **leader**. Heartbeats stop, the follower's heartbeat lease expires (`--heartbeat-lease-duration-ms`, 1.5 s by default), and it CAS's the already-expired S3 lease to become leader. This is the one write pause in the procedure, around 1.3 s in practice, not the 30 s S3 TTL; reads continue on the follower throughout.
 6. Replace and restart the old leader; it rejoins as the follower.
 
 Doing the follower first means only one failover happens, in step 5, and it is a clean lease handoff.

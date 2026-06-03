@@ -30,7 +30,7 @@ Every option is both a command-line flag and an environment variable: `--data-ro
 | `--heartbeat-hard-timeout-multiplier` | `4` | Hard cap for kernel-blocked kTLS sends that ignore the soft timeout. |
 | `--heartbeat-lease-duration-ms` | `1500` | Silence before the follower's heartbeat lease expires. |
 | `--heartbeat-starve-threshold-ms` | `500` | While a heartbeat is in flight longer than this, reject new writes with `FollowerHeartbeatStarved` so the NIC has bandwidth for the ack. `0` disables. |
-| `--s3-lease-duration-ms` | `30000` | Durable leader-lease TTL. See [leader election](/operations/leader-election-s3). |
+| `--s3-lease-duration-ms` | `30000` | Durable leader-lease TTL. Cold-case backstop only; steady-state failover is bounded by `--heartbeat-lease-duration-ms`. See [leader election](/operations/leader-election-s3). |
 | `--max-clock-drift-ms` | `500` | Slack added to lease checks. NTP is required; flapping elections almost always trace to drift. |
 
 ## Write pipeline batching
