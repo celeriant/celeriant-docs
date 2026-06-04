@@ -28,7 +28,7 @@ The pool is the single object your app holds. It manages connections per node an
 | Method | Purpose |
 | --- | --- |
 | `WriteAsync(WriteRequest)` | Multi-aggregate atomic write. |
-| `WriteAsync(key, events, clientId?, allowCreate, expectedVersion?, enforceClientIdempotency)` | Single-aggregate convenience overload. |
+| `WriteAsync(key, events, clientId, allowCreate, expectedVersion?, enforceClientIdempotency)` | Single-aggregate convenience overload. |
 | `ReadAsync(ReadRequest)` | One page of an aggregate's events. |
 | `ReadAllAsync(key, filters?)` | `IAsyncEnumerable` that auto-paginates the whole stream. |
 | `AggregateDetailsAsync(AggregateDetailsRequest)` | Version and metadata without the events. |
@@ -37,7 +37,7 @@ The pool is the single object your app holds. It manages connections per node an
 | `WatchAsync(WatchRequest)` | Open a `WatchConnection` (dedicated; dispose it). |
 | `ListOrgsAsync` / `ListAggregateTypesAsync` / `ListAggregatesAsync` | Streaming discovery. |
 
-The single-aggregate `WriteAsync` takes its correctness controls as named parameters: `expectedVersion` for [optimistic concurrency](/guides/handling-conflicts), and `clientId` plus `enforceClientIdempotency` for [idempotent retries](/guides/idempotency). Pass a stable `clientId`; it defaults to a fresh GUID, which defeats idempotency.
+The single-aggregate `WriteAsync` takes its correctness controls as named parameters: `expectedVersion` for [optimistic concurrency](/guides/handling-conflicts), and `clientId` plus `enforceClientIdempotency` for [idempotent retries](/guides/idempotency). `clientId` is required on every write; the client never invents one. Keep it stable per writer.
 
 A worked write and read is in the [Quickstart](/get-started/quickstart); the [Guides](/guides/appending-events) cover each operation as a recipe.
 

@@ -32,9 +32,9 @@ The schema definition is submitted as a string and must be under the server's sc
 
 The string the server expects differs by `SchemaType`:
 
-- **`Json`** — the JSON Schema document itself, e.g. `{"type":"object","properties":{"amount":{"type":"integer"}},"required":["amount"]}`.
-- **`Avro`** — the Avro schema JSON, e.g. `{"type":"record","name":"Order","fields":[{"name":"amount","type":"long"}]}`. (Avro binary is schemaless on the wire, so a payload is rejected only when its bytes fail to decode against this schema.)
-- **`Protobuf`** — **not** `.proto` source text. Submit `base64(FileDescriptorSet):MessageName` — the base64 of a serialized protobuf `FileDescriptorSet` (as produced by `protoc --descriptor_set_out`), a colon, then the fully-qualified message name, e.g. `CqYB...base64...:Order`.
+- **`Json`** - the JSON Schema document itself, e.g. `{"type":"object","properties":{"amount":{"type":"integer"}},"required":["amount"]}`.
+- **`Avro`** - the Avro schema JSON, e.g. `{"type":"record","name":"Order","fields":[{"name":"amount","type":"long"}]}`. (Avro binary is schemaless on the wire, so a payload is rejected only when its bytes fail to decode against this schema.)
+- **`Protobuf`** - **not** `.proto` source text. Submit `base64(FileDescriptorSet):MessageName` - the base64 of a serialized protobuf `FileDescriptorSet` (as produced by `protoc --descriptor_set_out`), a colon, then the fully-qualified message name, e.g. `CqYB...base64...:Order`.
 
 ## Two things to remember
 

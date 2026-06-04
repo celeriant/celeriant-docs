@@ -50,8 +50,8 @@ Write for a reader who knows distributed systems but knows **nothing about Celer
 
 Every page that touches writes should be clear which pattern it describes.
 
-- **Pattern A — live writes with optimistic concurrency.** Online services append to the global log; conditional writes arbitrate concurrent writers at write time. Most of the docs assume this.
-- **Pattern B — local-first sync.** Clients/services buffer events locally (possibly offline) and replay them onto the global log on reconnect. No OCC; last-write-wins. Served by the local-first HTTP gateway. Fits offline-capable apps, per-device/per-user streams, edge services.
+- **Pattern A - live writes with optimistic concurrency.** Online services append to the global log; conditional writes arbitrate concurrent writers at write time. Most of the docs assume this.
+- **Pattern B - local-first sync.** Clients/services buffer events locally (possibly offline) and replay them onto the global log on reconnect. No OCC; last-write-wins. Served by the local-first HTTP gateway. Fits offline-capable apps, per-device/per-user streams, edge services.
 
 ## Voice
 
@@ -65,7 +65,7 @@ A doc page lives or dies on a small number of load-bearing claims: "this guarant
 - If the claim is "watch never misses," name the mechanism (`ToAggregateVersion` only advances; re-reading from cursor cannot skip).
 - If the claim is a number, name the conditions (batch size, load, hardware).
 
-A page full of true but vague statements is worse than no page — it makes the reader feel they understand without actually transferring the mechanism. Default test: can a reader of this page predict the system's behavior in a failure case the page does not explicitly cover? If yes, the mechanism is there. If no, it is decoration.
+A page full of true but vague statements is worse than no page - it makes the reader feel they understand without actually transferring the mechanism. Default test: can a reader of this page predict the system's behavior in a failure case the page does not explicitly cover? If yes, the mechanism is there. If no, it is decoration.
 
 ## Pre-publish checklist
 

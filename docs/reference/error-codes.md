@@ -38,7 +38,7 @@ Codes reflect the current pre-1.0 protocol and may change before 1.0.
 | 2010 | `WriteAggregateExistsCacheError` | Internal cache error checking aggregate existence. |
 | 2011 | `NotLeader` | The write hit a follower. Official client pools redirect automatically; raw clients must handle it. See [two-node cluster](/operations/two-node-cluster). |
 | 2012 | `WriteReplicationBackpressure` | The follower cannot keep up; the leader is shedding load. Back off and retry. See [troubleshooting](/operations/troubleshooting). |
-| 2013 | `InflightDuplicateWrite` | A duplicate of an identical `(clientId, clientSeq)` write that is still in flight — locally fsynced but the first copy has not finished committing (and, in a cluster, not yet confirmed replicated). Also fires on a single standalone node when identical writes race concurrently. Hold the sequence, back off, and retry; do not treat as success, since in a cluster a failover before confirmation can roll it back. Once the first copy commits, a later duplicate gets `ClientIdempotencyViolation` (2002) instead. |
+| 2013 | `InflightDuplicateWrite` | A duplicate of an identical `(clientId, clientSeq)` write that is still in flight - locally fsynced but the first copy has not finished committing (and, in a cluster, not yet confirmed replicated). Also fires on a single standalone node when identical writes race concurrently. Hold the sequence, back off, and retry; do not treat as success, since in a cluster a failover before confirmation can roll it back. Once the first copy commits, a later duplicate gets `ClientIdempotencyViolation` (2002) instead. |
 
 ## Schema (2020-2029)
 

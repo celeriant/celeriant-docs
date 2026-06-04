@@ -15,7 +15,7 @@ Each event carries:
 - **Timestamps**: the client's event timestamp (when it happened, in your domain) and the server timestamp (when it was durably written).
 - **Sequence numbers**: the client sequence used for [idempotent retries](/concepts/idempotent-writes), and the server-assigned index.
 
-The server trusts the client's ordering. The timestamp you stamp is the timestamp it keeps; it does not rewrite your events' time to its own clock.
+The server trusts the client's ordering. The timestamp you stamp is the timestamp it keeps; it does not rewrite your events' time to its own clock. But neither timestamp determines order: order is the server-assigned index, full stop. See [Reads and ordering](/concepts/reads-and-ordering).
 
 ## Batches and the version
 

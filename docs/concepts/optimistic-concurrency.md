@@ -18,6 +18,7 @@ Every aggregate has a version: the index of its latest event batch. When you rea
 await pool.WriteAsync(
     key,
     events: [orderShipped],
+    clientId: writerId,
     expectedVersion: 4,        // commit only if still at version 4
     enforceClientIdempotency: true);
 ```
@@ -41,6 +42,7 @@ while (true)
     try
     {
         await pool.WriteAsync(key, [new OrderShipped()],
+            clientId: writerId,
             expectedVersion: state.Version,
             enforceClientIdempotency: true);
         break;                                       // committed

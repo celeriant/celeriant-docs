@@ -35,16 +35,15 @@ pool.register_schema(request).await?;
 pool.watch(request, options).await?;
 
 // convenience for the common single-aggregate write
-pool.write_events(aggregate_key, events).await?;
-pool.write_events_with(aggregate_key, events, WriteEventsOptions {
-    client_id,
+pool.write_events(aggregate_key, events, client_id).await?;
+pool.write_events_with(aggregate_key, events, client_id, WriteEventsOptions {
     allow_create: true,
     expected_version: Some(version),   // optimistic concurrency
     enforce_client_idempotency: true,
 }).await?;
 ```
 
-`expected_version` is the OCC guard (the .NET client spells the same thing `expectedVersion`). `client_id` is a `u128`; keep it stable for [idempotency](/guides/idempotency). Request and response types come from `celeriant_msg` and mirror the other clients, with `u128` where .NET uses `Guid`.
+`expected_version` is the OCC guard (the .NET client spells the same thing `expectedVersion`). `client_id` is a `u128` and every write takes it explicitly; the client never invents one. Keep it stable for [idempotency](/guides/idempotency). Request and response types come from `celeriant_msg` and mirror the other clients, with `u128` where .NET uses `Guid`.
 
 ## Errors
 

@@ -44,6 +44,9 @@ var key = new AggregateKey(
     aggregateTypeId: Guid.Parse("22222222-2222-2222-2222-222222222222"),
     aggregateId:     Guid.Parse("33333333-3333-3333-3333-333333333333"));
 
+// who is writing; keep it stable across restarts (see Clients and identity)
+var writerId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+
 // append one event, creating the aggregate if it does not exist
 await pool.WriteAsync(
     key,
@@ -55,6 +58,7 @@ await pool.WriteAsync(
         EventTimestamp   = DateTimeOffset.UtcNow,
         EventValue       = """{ "hello": "world" }"""u8.ToArray(),
     }],
+    clientId: writerId,
     allowCreate: true);
 
 // read it back from the start of the stream

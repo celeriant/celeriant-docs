@@ -19,6 +19,7 @@ await using var pool = new CeleriantPool(new CeleriantPoolOptions
 });
 
 var key = new AggregateKey(orgId, ordersType, orderId);
+var writerId = myStableWriterId;   // one id per writer, held across restarts
 
 await pool.WriteAsync(
     key,
@@ -30,6 +31,7 @@ await pool.WriteAsync(
         EventTimestamp   = DateTimeOffset.UtcNow,
         EventValue       = Encoding.UTF8.GetBytes("""{ "sku": "A-1", "qty": 2 }"""),
     }],
+    clientId: writerId,
     allowCreate: true);
 ```
 
@@ -61,18 +63,19 @@ await pool.WriteAsync(key,
         new AggregateEvent { ClientSeq = 1, EventTypeMajor = 1, EventTimestamp = now, EventValue = Encoding.UTF8.GetBytes("""{ "event": "created" }""") },
         new AggregateEvent { ClientSeq = 2, EventTypeMajor = 2, EventTimestamp = now, EventValue = Encoding.UTF8.GetBytes("""{ "event": "lineAdded" }""") },
     ],
+    clientId: writerId,
     allowCreate: true);
 ```
 
 ## Make it conditional, make it idempotent
 
-The `WriteAsync` convenience overload takes the two parameters that matter for correctness:
+Two more parameters turn the safety on:
 
 ```csharp
 await pool.WriteAsync(key, events,
-    clientId: writerId,             // stable per writer; the idempotency key
-    expectedVersion: 4,     // OCC: commit only if the aggregate is still at version 4
-    enforceClientIdempotency: true);
+    clientId: writerId,
+    expectedVersion: 4,             // OCC: commit only if the aggregate is still at version 4
+    enforceClientIdempotency: true);  // dedup retries by (clientId, ClientSeq)
 ```
 
 For why and how, see [Handling concurrency conflicts](/guides/handling-conflicts) and [Implementing idempotent writes](/guides/idempotency).

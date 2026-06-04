@@ -12,6 +12,7 @@ An aggregate is addressed by `org / type / id` and comes into being on its first
 
 ```csharp
 var key = new AggregateKey(orgId, ordersType, orderId);
+var writerId = myStableWriterId;   // one id per writer, held across restarts
 
 await pool.WriteAsync(key,
     events: [new AggregateEvent
@@ -21,6 +22,7 @@ await pool.WriteAsync(key,
         EventTimestamp = DateTimeOffset.UtcNow,
         EventValue     = Encoding.UTF8.GetBytes("""{ "sku": "A-1", "qty": 2 }"""),
     }],
+    clientId: writerId,
     allowCreate: true);
 ```
 
@@ -33,7 +35,7 @@ long version = details.MaxAggregateVersion;   // where the aggregate is now
 
 ## Write conditionally
 
-The point of an event store: append only if nobody moved the aggregate since you read it. Pass the version you expect, and a stable `clientId` so a retry cannot double-write:
+The point of an event store: append only if nobody moved the aggregate since you read it. Pass the version you expect, and turn on `enforceClientIdempotency` so a retry cannot double-write:
 
 ```csharp
 await pool.WriteAsync(key,

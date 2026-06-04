@@ -15,7 +15,7 @@ org_id / aggregate_type_id / aggregate_id
 ```
 
 - **org** is the top-level tenant. Nothing is shared across orgs; it is a hard isolation boundary.
-- **aggregate type** groups aggregates of the same kind: `Orders`, `Accounts`, `Devices`.
+- **aggregate type** groups aggregates of the same kind: `Orders`, `Accounts`, `Devices`. Schemas are stored against aggregate types.
 - **aggregate id** identifies the individual stream.
 
 So `Acme / Orders / order-4821` is one order's event stream. All three parts are 128-bit ids.
@@ -32,11 +32,11 @@ The choice to use `%` over the raw id is deliberate. It hands placement back to 
 
 Three rules, three placement strategies:
 
-- `org_id` — every aggregate inside a tenant shares a shard. Pick this if your invariants are per-tenant (a transfer between two accounts in the same org, a credit and a hold on one customer's record). The cost: one tenant's writes never parallelise across cores.
-- `aggregate_type_id` — every aggregate of a type shares a shard. Useful if you co-commit across types within a type (rare) or want type-locality for caches.
-- `aggregate_id` (default) — each aggregate goes to whatever shard its id mods to. Even distribution, full parallelism. Multi-aggregate atomic writes still work, but only between ids you have deliberately co-located (`id_a % shards == id_b % shards`). Plan your id allocation if you need this; otherwise the writes will fail.
+- `org_id` - every aggregate inside a tenant shares a shard. Pick this if your invariants are per-tenant (a transfer between two accounts in the same org, a credit and a hold on one customer's record). The cost: one tenant's writes never parallelise across cores.
+- `aggregate_type_id` - every aggregate of a type shares a shard. Useful if you mostly co-commit across aggregates within a type.
+- `aggregate_id` (default) - each aggregate goes to whatever shard its id mods to. Even distribution, full parallelism. Multi-aggregate atomic writes still work, but only between ids you have deliberately co-located (`id_a % shards == id_b % shards`). Plan your id allocation if you need this; otherwise the writes will fail.
 
-Ordering is per-shard, per-aggregate. There is no global order across aggregates, and you do not want one; a global sequence is a global bottleneck. Order is exactly as wide as the aggregate.
+Ordering is technically on `wal_seq` which is per-shard. There is no global order across aggregates, and you do not want one; a global sequence is a global bottleneck. Order is exactly as wide as the aggregate.
 
 ## Cardinality is not your problem
 

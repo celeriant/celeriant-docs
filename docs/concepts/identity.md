@@ -14,9 +14,9 @@ A client's identity is load-bearing: it is the `client` half of the `(aggregate,
 
 ## Keep your client id stable
 
-This is the part that bites people, and the failure is silent. Idempotency tracks the highest `ClientSeq` per `(aggregate, client)`. If a writer's identity changes — a regenerated keypair, a fresh ephemeral key per process, an API key rotation that the writer was not told about — the server sees a new client and applies its retried write as a brand-new event. No error. The duplicate just lands. You find it later when the projection numbers do not add up.
+This is the part that bites people, and the failure is silent. Idempotency tracks the highest `ClientSeq` per `(aggregate, client)`. If a writer's identity changes - a regenerated keypair, a fresh ephemeral key per process, an API key rotation that the writer was not told about - the server sees a new client and applies its retried write as a brand-new event. No error. The duplicate just lands. You find it later when the projection numbers do not add up.
 
-So: a long-lived backend writer holds the same key across restarts. Persist it the same way you persist a database password. The default behavior in some client constructors is "generate a fresh GUID if none is provided" — do not rely on that for any writer that retries.
+So: a long-lived backend writer holds the same key across restarts. Persist it the same way you persist a database password. The client libraries never generate a client id for you; every write asks for it explicitly. Supply the same value every time.
 
 If you are rotating an API key intentionally, drain the old writer first (wait until no retries are outstanding); a key rotation is a fresh identity, full stop.
 

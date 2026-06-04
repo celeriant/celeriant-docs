@@ -22,44 +22,44 @@ The trade is honest and stated up front in the [gaps](#what-this-is-not) section
 
 Every fault is a real one, applied to a real node:
 
-- **SIGKILL** — hard crash. No cleanup, no graceful step-down, no chance to release a lease. The power-cord pull.
-- **SIGTERM** — graceful stop. Tests that the planned path is clean and the chaotic path is safe, separately.
-- **SIGSTOP / SIGCONT** — process pause and resume. This is the zombie-leader test: freeze the leader for longer than its lease, let the follower take over, then thaw the old leader and watch it discover it has been deposed. This is the exact failure mode (a paused process acting past its lease) that lease-based systems get wrong.
-- **Network partition** — `nftables` rules that drop traffic on a specific host and port, including asymmetric partitions where packets flow one way but not the other. The replication link and the S3 link are partitioned independently, because they fail independently.
-- **Clock skew** — the node's system clock shoved forward, to attack the clock-drift fence directly.
-- **Disk full** — the data volume filled to within tens of MiB of capacity so the WAL hits `ENOSPC` mid-write.
-- **S3 outage** — MinIO actually stopped and restarted, not just firewalled. Short outages and minute-long ones.
+- **SIGKILL** - hard crash. No cleanup, no graceful step-down, no chance to release a lease. The power-cord pull.
+- **SIGTERM** - graceful stop. Tests that the planned path is clean and the chaotic path is safe, separately.
+- **SIGSTOP / SIGCONT** - process pause and resume. This is the zombie-leader test: freeze the leader for longer than its lease, let the follower take over, then thaw the old leader and watch it discover it has been deposed. This is the exact failure mode (a paused process acting past its lease) that lease-based systems get wrong.
+- **Network partition** - `nftables` rules that drop traffic on a specific host and port, including asymmetric partitions where packets flow one way but not the other. The replication link and the S3 link are partitioned independently, because they fail independently.
+- **Clock skew** - the node's system clock shoved forward, to attack the clock-drift fence directly.
+- **Disk full** - the data volume filled to within tens of MiB of capacity so the WAL hits `ENOSPC` mid-write.
+- **S3 outage** - MinIO actually stopped and restarted, not just firewalled. Short outages and minute-long ones.
 
 ## The scenarios
 
 More than twenty named scenarios compose those faults into the situations that actually take databases down. The sharp ones:
 
-- **Leader SIGKILL under load** — hard-kill the current leader mid-bench. The follower must promote, serve writes, and lose nothing acknowledged.
-- **Three back-to-back leader kills** — kill and restart the leader three times in a row, fast. Forces repeated real failovers and checks that leadership genuinely changes hands each time rather than the same node bouncing back before the peer can promote.
-- **Asymmetric partition** — packets one direction only, the case that manufactures split-brain in systems with sloppy fencing.
-- **Partition leader from S3, link to follower intact** — the leader can still replicate to its follower but cannot reach the lease. It must keep serving, not fence itself spuriously.
-- **Kill follower and S3 simultaneously** — the catastrophic path. Both durability fallbacks removed at once. The leader must refuse to acknowledge writes it cannot make durable, rather than lie.
-- **SIGSTOP the leader past the lease TTL** — the fencing test described above.
-- **Clock skew, disk full, rolling restart, rapid partition flap** — the long tail of operational reality.
-- **Exactly-once audits under fault** — dedicated scenarios that drive idempotent writes through an S3 outage, and through a partition-then-kill-S3 blackout, then audit that every `(client, aggregate, sequence)` landed exactly once. No duplicates from retries, no gaps from drops.
+- **Leader SIGKILL under load** - hard-kill the current leader mid-bench. The follower must promote, serve writes, and lose nothing acknowledged.
+- **Three back-to-back leader kills** - kill and restart the leader three times in a row, fast. Forces repeated real failovers and checks that leadership genuinely changes hands each time rather than the same node bouncing back before the peer can promote.
+- **Asymmetric partition** - packets one direction only, the case that manufactures split-brain in systems with sloppy fencing.
+- **Partition leader from S3, link to follower intact** - the leader can still replicate to its follower but cannot reach the lease. It must keep serving, not fence itself spuriously.
+- **Kill follower and S3 simultaneously** - the catastrophic path. Both durability fallbacks removed at once. The leader must refuse to acknowledge writes it cannot make durable, rather than lie.
+- **SIGSTOP the leader past the lease TTL** - the fencing test described above.
+- **Clock skew, disk full, rolling restart, rapid partition flap** - the long tail of operational reality.
+- **Exactly-once audits under fault** - dedicated scenarios that drive idempotent writes through an S3 outage, and through a partition-then-kill-S3 blackout, then audit that every `(client, aggregate, sequence)` landed exactly once. No duplicates from retries, no gaps from drops.
 
 ## The invariants
 
 A scenario passes only if every one of these holds against the captured run and the post-run disk state. Each has a name in the harness; these are the ones that matter:
 
-**Safety — the guarantees that must never break:**
+**Safety - the guarantees that must never break:**
 
-- **ExactlyOneLeader** — across both nodes, leadership summed over time is exactly one. A tick with zero or two leaders is a violation. Chaos scenarios that exercise failover allow a bounded, measured split-brain window during the handoff and fail if it exceeds the budget.
-- **NoSameEpochDivergence** — two nodes never commit different data under the same lease epoch. This is the cardinal split-brain safety property, checked against the durable log, not the metrics.
-- **Divergent-tip fork detection** — after the cluster is quiesced, the harness SSHes into both nodes and compares each shard's WAL **tip hash**, not just its sequence number. Two nodes at the same sequence with different tip hashes is a silent fork, and a sequence-number comparison would pass it. This check catches it, and the harder fork-wedge case where a lagging node's prefix does not actually match the leader's history.
-- **NoTruncateDroppedSelfAcked** — when a node rolls back divergent log entries during recovery, it may never drop a write it had already acknowledged to a client. Acknowledged means durable, permanently, even across a rollback. This is the no-lost-writes invariant.
+- **ExactlyOneLeader** - across both nodes, leadership summed over time is exactly one. A tick with zero or two leaders is a violation. Chaos scenarios that exercise failover allow a bounded, measured split-brain window during the handoff and fail if it exceeds the budget.
+- **NoSameEpochDivergence** - two nodes never commit different data under the same lease epoch. This is the cardinal split-brain safety property, checked against the durable log, not the metrics.
+- **Divergent-tip fork detection** - after the cluster is quiesced, the harness SSHes into both nodes and compares each shard's WAL **tip hash**, not just its sequence number. Two nodes at the same sequence with different tip hashes is a silent fork, and a sequence-number comparison would pass it. This check catches it, and the harder fork-wedge case where a lagging node's prefix does not actually match the leader's history.
+- **NoTruncateDroppedSelfAcked** - when a node rolls back divergent log entries during recovery, it may never drop a write it had already acknowledged to a client. Acknowledged means durable, permanently, even across a rollback. This is the no-lost-writes invariant.
 
-**Liveness — the system must also make progress, not just stay safe by stalling:**
+**Liveness - the system must also make progress, not just stay safe by stalling:**
 
-- **FailoverWithinBudget** — the measured write-outage window during a leader failure must be under budget.
-- **EventualConvergence / WalSeqAdvanced** — a lagging node must either catch up to the leader or be provably still advancing. "Stuck at a non-zero diff" fails; "still catching up" passes.
-- **DistinctLeaderHosts / FinalLeaderWroteDuringBench** — the failover must actually happen and the promoted leader must actually serve client writes. Guards against scenarios that trivially pass because nothing moved.
-- **BenchThroughputFloor / BenchErrorsBounded** — sustained throughput stays above a floor and client errors stay within a bound, the whole time, through the faults.
+- **FailoverWithinBudget** - the measured write-outage window during a leader failure must be under budget.
+- **EventualConvergence / WalSeqAdvanced** - a lagging node must either catch up to the leader or be provably still advancing. "Stuck at a non-zero diff" fails; "still catching up" passes.
+- **DistinctLeaderHosts / FinalLeaderWroteDuringBench** - the failover must actually happen and the promoted leader must actually serve client writes. Guards against scenarios that trivially pass because nothing moved.
+- **BenchThroughputFloor / BenchErrorsBounded** - sustained throughput stays above a floor and client errors stay within a bound, the whole time, through the faults.
 
 **Stability envelope:** every run also bounds leader elections, S3 fallbacks, heartbeat failures, shard panics, node restarts, and role flips. A scenario declares the maximum disruption it expects; exceeding it fails the run even if the safety invariants held. A failover that was supposed to happen once and happened five times is a bug, even if no data was lost.
 
