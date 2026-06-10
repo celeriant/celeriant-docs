@@ -41,4 +41,4 @@ The binary ships the tooling. `celeriant cert` writes a CA and node and client c
 
 ## TLS is not identity
 
-mTLS proves the connection is encrypted and the client holds a trusted cert. It does not establish who the client is for idempotency and access control; that is the separate [identity](/concepts/identity) handshake. Enforce it with `--require-client-identity`. If you use API-key identity, you must run with TLS, because keys travel in the clear otherwise; `--insecure-allow-plaintext-auth` lifts that guard for local development only.
+mTLS proves the connection is encrypted and the client holds a trusted cert. It does not establish who the client is for idempotency; that is the separate [identity](/concepts/identity) handshake. Enforce it with `--require-client-identity`. If you use API keys, you must run with TLS, because keys travel in the clear otherwise; `--insecure-allow-plaintext-auth` lifts that guard for local development only.

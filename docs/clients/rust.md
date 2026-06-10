@@ -4,7 +4,7 @@ title: Rust client
 
 # Rust client
 
-Two Rust clients ship: `celeriant_client_tokio` for async services on tokio, and `celeriant_client_glommio` for thread-per-core services already on glommio. They expose the same operations; tokio is the one you reach for unless you are committed to glommio.
+Use `celeriant_client_tokio` for async services on tokio.
 
 ## Connect (tokio)
 
@@ -61,8 +61,4 @@ match pool.write(request).await {
 
 ## TLS and identity
 
-`ClientTlsConfig::new(client_config, server_name)` wires rustls; `ClientIdentityConfig::from_api_key(...)` or `::from_key_pair(public, private)` set identity, attached with `PoolOptions::with_tls` / `with_identity`. See [Clients and identity](/concepts/identity).
-
-## glommio
-
-`celeriant_client_glommio` exposes a single `CeleriantClient` rather than a pool, built for glommio's task model. Use it only when your service already runs on glommio; otherwise the tokio client is the default.
+`ClientTlsConfig::new(client_config, server_name)` wires rustls; `ClientIdentityConfig::from_api_key(...)` or `::from_key_pair(public, private)` set identity, attached with `PoolOptions::with_tls` / `with_identity`. See [Identity and authentication](/concepts/identity).

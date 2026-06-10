@@ -24,12 +24,12 @@ Each core owns its shard and runs single-threaded. There is no shared mutable st
 
 ## Failover and its dependency
 
-Leader election runs through an S3 conditional write that arbitrates a lease. Failover is a lease handoff, and it is off the write hot path. The honest dependency: a long S3 outage stalls *failover*, because that is where the lease lives. Acknowledged data is not at risk - it is fsynced on the surviving node's disk, and was either fsynced on the second node or written to S3 before the ack. The cluster cannot promote a new leader during an S3 outage, so writes pause until S3 returns or the existing leader recovers; reads keep serving.
+Leader election runs through an S3 conditional write that arbitrates a lease. A stable cluster does not touch S3 to stay leader: while heartbeats succeed they extend the lease locally, and the S3 lease object sits expired, unconsulted. So an S3 outage on a healthy cluster changes nothing; writes keep flowing. S3 matters only when leadership has to change hands - that is where the lease lives, and a node cannot promote while S3 is unreachable. Acknowledged data is not at risk either way: it is fsynced on the surviving node's disk, and was either fsynced on the second node or written to S3 before the ack.
 
-Two failure modes are worth distinguishing:
+Two failure modes:
 
 - **Leader dies, S3 healthy.** The follower's heartbeat lease expires within `--heartbeat-lease-duration-ms` (1.5s by default), then it CAS's the S3 lease, which has been sitting expired through normal operation, and takes over. Writes pause for that window, around 1.3s in practice; reads keep serving. The 30s `--s3-lease-duration-ms` only bounds the cold cases (fresh boot, just-promoted) where there is no live heartbeat carrying authority. See [leader election](/operations/leader-election-s3).
-- **S3 unreachable, both nodes healthy.** The current leader keeps serving; replication to S3 backs off, replication to the follower continues. If the leader then dies before S3 returns, writes are blocked until either node can reach S3 again.
+- **S3 unreachable, both nodes healthy.** Nothing changes. Replication runs leader to follower over TCP; S3 receives no data in this state anyway - it is a replication target only as a fallback when the follower is unreachable. The exposure is losing a node before S3 returns: a dead leader cannot be replaced because the lease is in S3, and a dead follower leaves only the S3 fallback path for the durability ack. Either way writes block until a node reaches S3 again; reads keep serving.
 
 Clock skew is the third edge: if the nodes drift beyond `--max-clock-drift-ms`, lease renewal can flap. NTP is not optional, it is on the dependency list.
 

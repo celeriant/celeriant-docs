@@ -8,15 +8,15 @@ A database that moves money is only worth what its correctness evidence is worth
 
 So that is what Celeriant has. Not a wall of green unit tests asserting that a function returns what it was told to return. A dedicated chaos harness, `celeriant-chaos`, that runs a live two-node cluster under continuous client load, injects real faults at the OS and network layer, and then checks the durable, on-disk truth against a battery of safety and liveness invariants. If any invariant trips, the run fails. Loudly.
 
-This page is the honest account of what that harness does, what it proves, and where the gaps still are.
+This page covers what the harness does, what it proves, and where the gaps still are.
 
 ## Not a simulation
 
-`celeriant-chaos` does not mock the network or stub the disk. It drives the same binary you would deploy, on two real nodes, talking to a real S3-compatible store (MinIO), over real TCP. Faults are injected the way they actually happen in production: signals to the process, packet rules in the kernel, the clock moved out from under the node, the disk filled until writes get `ENOSPC`.
+`celeriant-chaos` does not mock the network or stub the disk. It drives the same binary you would deploy, on two real nodes running in RaspberryPi5's, talking to a real S3-compatible store (MinIO), over real TCP. Faults are injected the way they actually happen in production: signals to the process, packet rules in the kernel, the clock moved out from under the node, the disk filled until writes get `ENOSPC`.
 
-During every scenario, thousands of concurrent writers (4000 bench tasks by default) hammer the cluster the whole time the faults are landing. Correctness is not checked on a quiet system that was nudged once. It is checked on a saturated one, mid-fault, with writes in flight.
+During every scenario, thousands of concurrent writers hammer the cluster the whole time the faults are landing. Correctness is not checked on a quiet system that was nudged once. It is checked on a saturated one, mid-fault, with writes in flight.
 
-The trade is honest and stated up front in the [gaps](#what-this-is-not) section: this is real-cluster fault injection, not a deterministic in-process simulator. Different tool, different strengths.
+This is real-cluster fault injection, not a deterministic in-process simulator. Different tool, different strengths; the [gaps](#what-this-is-not) section covers what that costs.
 
 ## The nemesis
 
@@ -49,7 +49,7 @@ A scenario passes only if every one of these holds against the captured run and 
 
 **Safety - the guarantees that must never break:**
 
-- **ExactlyOneLeader** - across both nodes, leadership summed over time is exactly one. A tick with zero or two leaders is a violation. Chaos scenarios that exercise failover allow a bounded, measured split-brain window during the handoff and fail if it exceeds the budget.
+- **ExactlyOneLeader** - across both nodes, leadership summed over time is exactly one. A tick with zero or two leaders is a violation.
 - **NoSameEpochDivergence** - two nodes never commit different data under the same lease epoch. This is the cardinal split-brain safety property, checked against the durable log, not the metrics.
 - **Divergent-tip fork detection** - after the cluster is quiesced, the harness SSHes into both nodes and compares each shard's WAL **tip hash**, not just its sequence number. Two nodes at the same sequence with different tip hashes is a silent fork, and a sequence-number comparison would pass it. This check catches it, and the harder fork-wedge case where a lagging node's prefix does not actually match the leader's history.
 - **NoTruncateDroppedSelfAcked** - when a node rolls back divergent log entries during recovery, it may never drop a write it had already acknowledged to a client. Acknowledged means durable, permanently, even across a rollback. This is the no-lost-writes invariant.
@@ -69,7 +69,7 @@ The strongest check in the suite refuses to trust Celeriant to grade its own hom
 
 The exactly-once audit first reads back through the server's normal `read()` API to find aggregates that look like they are missing sequence numbers. Then, for every flagged entry, it throws that answer away and goes to ground truth: it SSHes into **both** data nodes, runs `celeriant-wal-inspect` directly on the raw WAL files, parses the per-batch records to extract the set of client sequences actually on disk, and reclassifies each "missing" sequence against what is physically stored.
 
-The server's read path has its own bugs that over-report missing data by roughly five times. The disk-truth verifier exists because a correctness audit that trusts the same component it is auditing is not an audit. Ground truth is the bytes on the platters of two machines, read by a separate tool.
+The disk-truth verifier exists because a correctness audit that trusts the same component it is auditing is not an audit. Ground truth is the bytes on the platters of two machines, read by a separate tool.
 
 ## Soak
 

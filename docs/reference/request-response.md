@@ -8,12 +8,12 @@ The operations the server exposes, and where each runs. The exact field shapes a
 
 | Operation | Request | Response | Runs on | Notes |
 | --- | --- | --- | --- | --- |
-| Write | `WriteRequest` (map of `AggregateKey` to `SingleAggregateWrite`) | `SuccessResponse` | leader | Conditional and atomic across aggregates on one shard. |
+| Write | `WriteRequest` (map of `AggregateKey` to `SingleAggregateWrite`) | `WriteResponse` (`MaxAggregateVersion` when the write hit exactly one aggregate) | leader | Conditional and atomic across aggregates on one shard. |
 | Read | `ReadRequest` (`AggregateKey` + `ReadFilters`) | `ReadResponse` (event batches + `NextAggregateVersion` cursor) | any node | Per-aggregate, ordered, filtered, paged. |
 | Aggregate details | `AggregateDetailsRequest` | `AggregateDetailsResponse` (versions, `IsDeleted`, flags, last write) | any node | Metadata without the events. |
-| Delete | `DeleteRequest` (map to `SingleAggregateDelete`) | `SuccessResponse` | leader | Removes a stream; `AllowRecreate` / `AllowSequenceContinuation` flags. |
-| Trim | `TrimStartRequest` (`KeepFromAggregateVersion`) | `SuccessResponse` | leader | Drops a prefix of old events. |
-| Register schema | `RegisterSchemaRequest` (`SchemaKey` + `SchemaType` + schema) | `SuccessResponse` | leader | Validates future writes of that event type. |
+| Delete | `DeleteRequest` (map to `SingleAggregateDelete`) | `DeleteResponse` | leader | Removes a stream; `AllowRecreate` / `AllowSequenceContinuation` flags. |
+| Trim | `TrimStartRequest` (`KeepFromAggregateVersion`) | `TrimStartResponse` | leader | Drops a prefix of old events. |
+| Register schema | `RegisterSchemaRequest` (`SchemaKey` + `SchemaType` + schema) | `RegisterSchemaResponse` | leader | Validates future writes of that event type. |
 | Watch | `WatchRequest` (scope + `RequestedLatency`) | a stream of `WatchResponse` (change notifications) | any node | Notifications carry the changed batch-index range, not payloads. |
 | List orgs / types / aggregates | list request (scope + paging) | a stream of list items / `AggregateStats` | any node | Streaming; the client merges across shards. |
 

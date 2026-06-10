@@ -13,7 +13,7 @@ We call it idempotent retries, not "exactly-once". Exactly-once does happen here
 The dedup key is the pair `(clientId, ClientSeq)` per aggregate, not `ClientSeq` alone. Two reasons that matters:
 
 - Multiple writers can produce the same `ClientSeq` against the same aggregate (each numbers their own events from 1). Without the `clientId`, the server would deduplicate two distinct writes by mistake; with it, each writer has its own sequence space.
-- Idempotency is enforced per-`(aggregate, clientId)`. The history is scoped to that pair. Change the `clientId` and you start over - which is exactly the silent-corruption bug below.
+- Idempotency is enforced per-`(aggregate, clientId)`. The history is scoped to that pair. Change the `clientId` and you start over, which is exactly the silent-corruption bug below.
 
 Each writer holds a [client id](/concepts/identity) that must stay stable across restarts. Every write takes it explicitly, and the client library never invents one. Treat it like durable service config; if you let it drift (generating a fresh GUID at startup is the common mistake), the dedup history does not apply and a retried write *will* land twice. The server cannot detect this, because as far as it knows the two writes came from two different clients.
 
@@ -48,9 +48,15 @@ You do not build a dedup table. You do not store "in-flight" markers. The sequen
 
 Idempotency and [optimistic concurrency](/concepts/optimistic-concurrency) compose, and the order of the checks is part of the contract: **the server checks the version guard first, then idempotency.** Two consequences follow.
 
-First consequence: a retried conditional write needs a fresh `expectedVersion`. If your prior attempt landed, the version moved, because your own write moved it. Resend the identical request and the version guard fails first: you get a conflict (2003), never "already landed" (2002). So the retry recipe is: re-read, keep the same `ClientSeq` and payload, update the `expectedVersion`, send again. Now the server gives you a straight answer. Prior attempt landed: the guard passes and idempotency says 2002. Never landed: both checks pass and the write lands. This matters because after a timeout you cannot tell who moved the version, you or another writer. The retry is how you find out. One catch: with a shared client id, a 2002 is not automatically *yours*. That is the second consequence.
+First consequence: a retried conditional write needs a fresh `expectedVersion`. If your prior attempt landed, the version moved, because your own write moved it. Resend the identical request and the version guard fails first: you get a conflict (2003), never "already landed" (2002).
 
-Second consequence: the ordering protects writers sharing a client id, with one gap you must close yourself. If two concurrent writes pick the same `ClientSeq`, the loser hits the version guard and gets a conflict. It re-reads and writes its own event under a fresh sequence. That holds only if the loser *hears* the rejection. If that 2003 is lost to a timeout, the loser follows the timeout recipe, retries its held sequence, and gets a 2002 about the winner's event, not its own. It reports success; its event was never written.
+So the retry recipe is: re-read, keep the same `ClientSeq` and payload, update the `expectedVersion`, send again. Now the server gives you a straight answer. Prior attempt landed: the guard passes and idempotency says 2002. Never landed: both checks pass and the write lands.
+
+This matters because after a timeout you cannot tell who moved the version, you or another writer. The retry is how you find out. One catch: with a shared client id, a 2002 is not automatically *yours*. That is the second consequence.
+
+Second consequence: the ordering protects writers sharing a client id, with one gap you must close yourself. If two concurrent writes pick the same `ClientSeq`, the loser hits the version guard and gets a conflict. It re-reads and writes its own event under a fresh sequence.
+
+That holds only if the loser *hears* the rejection. If that 2003 is lost to a timeout, the loser follows the timeout recipe, retries its held sequence, and gets a 2002 about the winner's event, not its own. It reports success; its event was never written.
 
 The root problem: `(clientId, ClientSeq)` only names your event if nobody else can mint the same name. Either keep one in-flight write per `(aggregate, clientId)` at a time, or verify a 2002 against your own request id before treating it as success. On a BFF the client id is shared by every concurrent request, so verification is the only option. The [guide](/guides/idempotency) shows it.
 

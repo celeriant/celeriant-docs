@@ -12,7 +12,7 @@ You might have two services; for example, an order service, and an SMS service. 
 
 ## You need SQL and/or OLAP
 
-Celeriant is the write side. Reads are per-aggregate, by offset and event type. It is row based. There is no SQL, no ad-hoc query, no secondary index you can query across aggregates. Use a RDBMS, DuckDb or a data lake, etc.
+Celeriant is the write side. Reads are per-aggregate, by offset and event type. It is row based. There is no SQL, no ad-hoc query, no secondary index you can query across aggregates. Use a RDBMS, DuckDB or a data lake, etc.
 
 ## You need transactional reads across aggregates
 

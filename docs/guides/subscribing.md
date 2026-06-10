@@ -4,16 +4,15 @@ title: Subscribing to live events
 
 # Subscribing to live events
 
-Open a [watch](/concepts/watch) to react to writes as they land. A watch delivers change notifications, not payloads; you read the new events yourself. The connection is dedicated, so dispose it.
+Open a [watch](/concepts/watch) to react to writes as they land. A watch delivers change notifications, not payloads; you read the new events yourself.
 
 ## Open a watch
 
 ```csharp
 var request = new WatchRequest
 {
-    RequestedLatency = TimeSpan.FromMilliseconds(250), // tolerate up to 250ms of coalescing
-    AggregateTypes   = [ordersType],                   // scope: a type, or Orgs / Aggregates
-    OperationTypes   = [WatchOperationType.Write],     // only writes
+    AggregateTypes = [ordersType],               // scope: a type, or Orgs / Aggregates
+    OperationTypes = [WatchOperationType.Write], // only writes
 };
 
 await using var watch = await pool.WatchAsync(request);
@@ -30,7 +29,17 @@ while (true)
 }
 ```
 
-Scope the watch with `Orgs`, `AggregateTypes`, or `Aggregates`, and filter by `OperationTypes`. The scope must line up with the cluster's [routing rule](/concepts/aggregates): if the cluster routes by `org_id`, you need an `Orgs` filter; if by `aggregate_type_id`, an `AggregateTypes` filter; if by `aggregate_id`, the explicit `Aggregates`. Cross the wires and the server returns error 9002 (`IncompatibleFilters`). A higher `RequestedLatency` lets the server coalesce bursts into fewer notifications; it never drops a change, because the notification's `ToAggregateVersion` only advances, so re-reading from your cursor cannot skip a batch. Exceed the server's `--watch-max-requested-latency-ms` and you get 8001 (`LatencyTooHigh`).
+One request, one loop. The connection is dedicated, not pooled; dispose it when done.
+
+## Shards are handled for you
+
+A watch runs per shard, and your scope often spans several. The client library deals with this: it probes with a single connection, and if the server reports the scope crosses shards, it opens one connection per shard and merges them into the one stream behind `NextAsync`. You never see the fan-out.
+
+Only the raw protocol path makes you think about shards. There, a watch without a `shard_id` must route to exactly one shard, so the scope has to line up with the cluster's [routing rule](/concepts/aggregates): routed by `org_id` you need an `Orgs` filter, by `aggregate_type_id` an `AggregateTypes` filter, by `aggregate_id` the explicit `Aggregates`. Cross the wires and you get error 9002 (`IncompatibleFilters`); a scope spanning multiple shards gets 9001 with the shard count. The client library recovers from both by fanning out, so you only ever see these errors on a raw connection.
+
+## Latency
+
+`RequestedLatency` is how much coalescing you tolerate. A higher value lets the server merge bursts into fewer notifications; it never drops a change, because the notification's `ToAggregateVersion` only advances, so re-reading from your cursor cannot skip a batch. Exceed the server's `--watch-max-requested-latency-ms` and you get 8001 (`LatencyTooHigh`).
 
 ## Catch up, then follow
 

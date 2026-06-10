@@ -4,7 +4,7 @@ title: Performance
 
 # Performance
 
-The full shape of one run, so you can judge whether it is honest. Not a single hero number: connections, throughput, the whole latency spread.
+The full shape of one run. Not a single hero number: connections, throughput, the whole latency spread.
 
 ## The headline
 

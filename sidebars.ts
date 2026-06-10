@@ -107,19 +107,19 @@ const sidebars: SidebarsConfig = {
         "reference/glossary",
       ],
     },
-    {
-      type: "category",
-      label: "Queue",
-      items: [
-        "queue/overview",
-        "queue/getting-started",
-        "queue/leases-and-acks",
-        "queue/dlq-and-poison",
-        "queue/sticky-and-ordering",
-        "queue/operations",
-        "queue/wire-reference",
-      ],
-    },
+    // {
+    //   type: "category",
+    //   label: "Queue",
+    //   items: [
+    //     "queue/overview",
+    //     "queue/getting-started",
+    //     "queue/leases-and-acks",
+    //     "queue/dlq-and-poison",
+    //     "queue/sticky-and-ordering",
+    //     "queue/operations",
+    //     "queue/wire-reference",
+    //   ],
+    // },
   ],
 };
 

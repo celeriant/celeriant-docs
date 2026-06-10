@@ -14,7 +14,9 @@ This only means something because the log is [append-only and immutable](/concep
 
 ## Verifying
 
-The chain lives inside the write-ahead log, not in the read API, so verification is operational rather than something a client does by reading events. Each node validates its chain as it recovers the log on boot; comparing the two nodes' copies, or comparing against a backup or a head hash you recorded elsewhere, detects tampering relative to a reference the attacker could not also rewrite. A match proves the history is intact and in order; the first mismatch localizes the tampering. The chain is tamper-evidence, not a signature: it shows that history was altered, not who altered it. See [Verifying the audit chain](/guides/verifying-audit-chain). See [Verifying the audit chain](/guides/verifying-audit-chain).
+The chain lives inside the write-ahead log, not the read API. The server uses it in one place: divergence detection during replication. When leadership moves or a node rejoins after a partition, the first incoming batch's predecessor hash must match the local chain tip; a mismatch means the logs forked, and walking the chain back finds where. Batches are also checked for internal continuity before they replicate or land in S3. Boot does not re-verify the chain; a node loads its persisted tip and trusts it.
+
+For an audit, pull the log and recompute the chain with a script, comparing against a reference the attacker could not also rewrite: the other node's copy, a backup, or a head hash you recorded elsewhere. A match proves the history intact; the first mismatch localizes the edit. The chain is tamper-evidence, not a signature: it shows that history was altered, not who altered it. See [Verifying the audit chain](/guides/verifying-audit-chain).
 
 ## Why it matters
 

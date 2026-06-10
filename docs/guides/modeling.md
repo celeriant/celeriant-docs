@@ -8,9 +8,11 @@ Two decisions shape everything downstream: where you draw the aggregate boundary
 
 ## Drawing the aggregate boundary
 
-An [aggregate](/concepts/aggregates) is the unit of ordering and of [optimistic concurrency](/concepts/optimistic-concurrency). The rule of thumb: an aggregate is the smallest thing that has an invariant to protect. One order, one account, one device, one game match.
+Design aggregate boundaries around their use in read models. Read models catch up the stream at a per-aggregate level and apply events to the read projection.
 
-- **Too big** (one aggregate per tenant): every write to anything in that tenant contends on one version, and you serialize unrelated work.
+Also try to keep aggregates atomic and independent of each other; although you can do [Atomic multi-aggregate writes](/guides/multi-aggregate-writes) as long as the aggregates map to the same shard.
+
+- **Too big** (one aggregate per tenant): every write to anything in that tenant contends on one version, and you serialize unrelated work. Read projections struggle to keep up to date.
 - **Too small** (splitting one logical thing across aggregates): an invariant that should be one atomic write now spans aggregates, and you depend on them sharing a [shard](/concepts/consistency-boundaries) or on coordination you did not want.
 
 Aim for the boundary that makes your common write a single-aggregate, conditional write.
@@ -19,7 +21,7 @@ Aim for the boundary that makes your common write a single-aggregate, conditiona
 
 If two aggregates must sometimes change together atomically (accounts in a transfer, a hold and a draft on one customer), they must land on the same shard. The server's `--routing-rule` decides which `id` is fed into `id % num_shards`:
 
-- `org_id`: a tenant's aggregates all share a shard. Default choice when invariants are per-tenant.
+- `org_id`: a tenant's aggregates all share a shard. Default choice when invariants are per-tenant. Caps throughput.
 - `aggregate_type_id`: a type's aggregates all share a shard. Useful if you co-commit across types of the same kind.
 - `aggregate_id`: each aggregate is routed independently. You can still co-commit, but only between ids you have deliberately chosen so `a % shards == b % shards`. Random UUIDs will scatter and break this.
 

@@ -54,9 +54,9 @@ while (true)
 Failures look alike and must be handled differently, because they interact with [idempotency](/guides/idempotency). The rule turns on one question: does the prior attempt's event already exist, and is it durable?
 
 - **Conflict** (`WriteOccException`, 2003): the world changed. Re-read, re-decide, and write a genuinely new event, re-deriving its `ClientSeq` from the caught-up state. The loop above does this.
-- **Timeout or dropped connection**: you do not know whether the write landed. Retry with the *same* `ClientSeq` after a backoff; if it did land, idempotency turns the retry into a no-op.
+- **Timeout or dropped connection**: you do not know whether the write landed. Retry with the *same* `ClientSeq` after a backoff; if it did land, the retry comes back as an idempotency violation (the last case below), which tells you it is safe to stop.
 - **In-flight duplicate** (`InflightDuplicateWriteException`, 2013): a prior attempt with this `ClientSeq` was written but is not yet confirmed durable. Hold the `ClientSeq`, back off, and retry. Do not call it success yet; it could still roll back.
-- **Idempotency violation** (`IdempotencyViolationException`, 2002): the prior attempt landed and is durable. You are done. Treat it as success and read the result back.
+- **Idempotency violation** (`IdempotencyViolationException`, 2002): an event with this `ClientSeq` landed and is durable. If yours is the only request in flight for this `clientId`, that event is your prior attempt: treat it as success and read the result back. But when concurrent requests share a `clientId`, a sibling may have taken the sequence first; then your event never landed, and this is really a conflict in disguise. The stream settles it: the reference (`celeriant_reference/src/verify.rs` in the server repo) point-reads the contested sequence and compares its `EventId`. Yours means success; a sibling's means re-derive and retry.
 
 The trap is using a fresh `ClientSeq` on a timeout retry: that appends the event twice. Hold the sequence constant on anything that might already be in flight, and re-derive it only after a genuine conflict.
 

@@ -46,7 +46,7 @@ Whether two aggregates share a shard is decided by `routing_id % num_shards`, wh
 | Two aggregates of the same type, across orgs | `aggregate_type_id` | That type's writes serialise on one shard |
 | Independent, single-aggregate writes mostly | `aggregate_id` (default) | Multi-aggregate writes only work between *deliberately co-located* ids |
 
-## Co-locating on `aggregate_id` routing
+## Co-locating aggregates
 
 If you are on the default rule and need a multi-aggregate write to land, you cannot pick the aggregates at random. You have to assign ids such that the modulo lines up:
 
@@ -57,6 +57,8 @@ account_B.aggregate_id = 1004   // 1004 % 4 = 0  → shard 0
 ```
 
 A write across A and B is accepted. Pick `1001` for B and you get error 9001. So: if you ever expect to co-commit two aggregates, allocate their ids together, off a base value that mods to the shard you want. The same logic applies to id generators; a UUID-based allocator will scatter aggregates uniformly and break this entirely.
+
+Co-location works for all routing types: `org_id`, `aggregate_type_id` and `aggregate_id`.
 
 If you cannot guarantee co-location at allocation time, you have the wrong rule. Re-route by `org_id` or `aggregate_type_id`.
 

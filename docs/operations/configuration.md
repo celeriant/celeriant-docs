@@ -89,7 +89,6 @@ These three knobs control how aggressively the leader amortises fsync and replic
 
 ## Tuning notes
 
-- **Write throughput vs latency.** `--fsync-delay-us` and `--replication-delay-us` are the main knobs. The defaults (17 ms each) target high throughput. If your SLO is single-digit-ms p99, lower both to your latency budget minus your fsync time minus network RTT. You will give up throughput.
 - **S3 fallback windows hurt.** While the follower is unreachable, every write pays `--s3-replication-delay-us` (default 500 ms) on the ack. This is intentional - bigger batches mean fewer S3 PUTs. If your follower is flapping briefly, the cluster recovers; if it is down for hours, plan for elevated write latency and budget S3 costs accordingly.
 - **NTP is required.** `--max-clock-drift-ms` is slack, not the budget. If your nodes drift more than this between renewals, lease checks fail and you get election flaps. Check `chronyc tracking` on both nodes before opening a bug.
 - **`reserve_coordinator_shard`** isolates shard 0 for heartbeat/schema work on dense-core boxes. Useful if you see one shard hot from coordination traffic alone.
