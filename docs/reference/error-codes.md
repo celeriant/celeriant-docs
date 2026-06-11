@@ -65,6 +65,7 @@ Codes reflect the current pre-1.0 protocol and may change before 1.0.
 | 3003 | `TrimFsyncError` | Fsync failed during the trim. |
 | 3004 | `TrimIndexOutOfRange` | The trim index is outside the stream's current range. |
 | 3005 | `TrimNotLeader` | The trim hit a follower. Retry against the leader. |
+| 3006 | `TrimReplicationBackpressure` | The follower cannot keep up; the leader is shedding load. Back off and retry. See [troubleshooting](/operations/troubleshooting). |
 
 ## Delete (4xxx)
 
@@ -77,6 +78,7 @@ Codes reflect the current pre-1.0 protocol and may change before 1.0.
 | 4004 | `DeleteReplicationError` | Replication failed during the delete. |
 | 4005 | `DeleteFsyncError` | Fsync failed during the delete. |
 | 4006 | `DeleteNotLeader` | The delete hit a follower. Retry against the leader. |
+| 4007 | `DeleteReplicationBackpressure` | The follower cannot keep up; the leader is shedding load. Back off and retry. See [troubleshooting](/operations/troubleshooting). |
 
 ## Listing (5xxx)
 
