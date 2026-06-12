@@ -39,7 +39,7 @@ Set `ordering_required = true` in `QueueConfig`. `plan_consume` enforces: if ANY
 
 The "pending Lease write" check is load-bearing. Two consumers can race plan_consume on separate connections. If you only checked folded leases, both could pass the gate and both get assignments before either Lease event has committed. The projection tracks `pending_lease[version] = consumer_id` so the second consumer's plan_consume sees the first's reservation and bails. See [INVARIANTS.md](https://github.com/celeriant/celeriant-queue/blob/main/docs/INVARIANTS.md) #23 and #37.
 
-When `ordering_required = true`, `dlq_strategy = Skip` is rejected at queue creation. A skip would let a later message overtake the head-of-line position. The valid choices are `Block` or `BlockAndDlq`. Both stop the line and preserve strict order.
+When `ordering_required = true`, `dlq_strategy = Skip` is rejected at queue creation. A skip would let a later message overtake the head-of-line position. The valid choices are `Block` or `BlockAndDlq`. On an `ordering_required` queue both HALT the line: `plan_consume` stops at the blocked head and delivers nothing past it until you send `Unblock`. Strict order preserved. Note this halt is specific to `ordering_required` — on a plain queue, Block only pins trim and skips the blocked version while later messages keep flowing. See [DLQ and poison handling](/queue/dlq-and-poison).
 
 ## Choosing
 

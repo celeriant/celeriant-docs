@@ -8,9 +8,9 @@ title: Leases, acks, and delivery counts
 
 `Consume` returns one or more messages plus a single `lease_id`. That lease_id grants exclusive in-flight ownership of every returned version until one of these happens:
 
-- The consumer sends `Ack { lease_id, version }`. Version is now terminal-Acked.
-- The consumer sends `Nack { lease_id, version, delay_ms }`. Version returns to Available, optionally with a redelivery delay.
-- The consumer sends `Extend { lease_id }`. Deadline pushes out by another `visibility_timeout_ms`.
+- The consumer sends `Ack { version, lease_id }`. Version is now terminal-Acked.
+- The consumer sends `Nack { version, lease_id, delay_ms }`. Version returns to Available, optionally with a redelivery delay.
+- The consumer sends `Extend { version, lease_id, additional_visibility_ms }`. Deadline pushes out by `additional_visibility_ms`, capped at the queue's `visibility_timeout_ms`.
 - The deadline (`server_timestamp_at_lease + visibility_timeout_ms`) passes without any of the above.
 
 When the deadline passes, no sweeper or background thread reaps. The next `plan_consume` sees the lease is expired and re-folds the version back into Available. Expiry as a fold rule. There is no in-memory timer to lose on failover.
@@ -41,17 +41,17 @@ If you can't predict it, use `Extend` from inside the consumer when you're still
 
 ## Ack batching
 
-`AckRequest` carries `Vec<AckHandle>`. The handler batches the entire request into one durable `ControlEvent::AckBatch` write. N acks per request, one fsync. Inside-request amortisation.
+`AckRequest` carries `Vec<AckHandle>`. The handler batches the entire request into one durable `ControlEvent::AckBatch` write. N acks per request, one fsync. Inside-request amortisation. `NackRequest` gets the identical treatment: one durable `NackBatch` event per request, mirroring AckBatch.
 
 There is no cross-request coalescing window today. Each `Ack` RPC pays one fsync. The window is a small future optimisation that would fold acks from independent RPCs landing within a few ms into one event.
 
 ## Idempotency on produce
 
-`Produce` requires `client_id` and `client_seq` per message. The storage layer enforces strict monotonicity. `client_seq` must be strictly greater than every prior `client_seq` for that `client_id`.
+`Produce` carries one `client_id` per request and a `client_seq` per message. The storage layer enforces strict monotonicity: each new message's `client_seq` must be greater than everything previously committed for that `client_id`.
 
-A replay of an older `client_seq` (e.g., after a TCP reset where the client retried with the same value) returns `IdempotencyConflict`. Never a silent duplicate write. The integration test `produce_idempotency_replays_same_versions_across_reconnect` is the canonical demonstration.
+A replay of an already-durable `client_seq` (e.g., after a TCP reset where the client retried the batch) is not an error. The entry is skipped, and its slot in `ProduceResponse.assigned_versions` comes back `None`; new entries in the same batch still commit and come back `Some(version)`. Same seq = same message, so a blind retry of the whole batch self-heals. Kafka-style idempotent producer. Never a silent duplicate write, never a spurious error on retry. The integration test `produce_idempotency_replays_same_versions_across_reconnect` is the canonical demonstration.
 
-If you genuinely lost the in-flight response and don't know whether the write committed, query `Stats`. The durable `messages_tail_version` tells you what's on disk.
+If you genuinely lost the in-flight response and don't know whether the write committed, just retry the batch and read `assigned_versions`. `None` means it was already on disk.
 
 ## Ack-hole policy
 

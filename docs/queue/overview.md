@@ -20,7 +20,7 @@ Kurrent picks ordering. Persistent subscriptions are leader-only, single-threade
 
 Redis and River pick simplicity. Visibility-timeout redelivery is a sweeper job that strands messages mid-failover. Once a poison message drops from the in-memory delivery list, no attempt count survives. It can be redelivered forever.
 
-Celeriant Queue picks all of them. The architecture is the unlock: every queue verb is a control event on Celeriant's WAL. Durable produce, durable ack, durable lease. `delivery_count` is derived from the log, not from RAM. Park is preceded by a durable DLQ write, not followed by one. Block stops the line and the projection keeps the version addressable for as long as the operator needs to look at it.
+Celeriant Queue picks all of them. The architecture is the unlock: every queue verb is a control event on Celeriant's WAL. Durable produce, durable ack, durable lease. `delivery_count` is derived from the log, not from RAM. Park is preceded by a durable DLQ write, not followed by one. Block pins trim — and halts the line on `ordering_required` queues — while the projection keeps the version addressable for as long as the operator needs to look at it.
 
 ## What you get
 

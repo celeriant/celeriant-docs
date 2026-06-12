@@ -24,6 +24,10 @@ First build is slow. Full Rust release build of celeriant-queue and all celerian
 | Grafana queue dashboard | `http://localhost:3001/d/celeriant-queue` |
 | Prometheus | `http://localhost:9091` |
 
+::::warning No auth, no TLS on the queue port yet
+Port 10100 is a raw TCP socket. No authentication, no TLS, and `org_id` is whatever the client claims it is. Auth + TLS are tracked (F-B3) and land later. Until then: bind loopback-only or keep the port inside a network you fully trust. Do not expose it to the internet.
+::::
+
 The compose file assumes `celeriant-queue/` and `celeriant-db/` are cloned under the same parent dir. The queue depends on celeriant-db crates via workspace path.
 
 ## Bare metal
@@ -80,7 +84,7 @@ fn main() {
         let p = rpc(&mut tcp, &codec, QueueRequest::Produce(ProduceRequest {
             correlation_id: Some(2), queue_key: queue, client_id: 42,
             messages: vec![ProduceMessage {
-                client_seq: 1, partition_key: None, delay_ms: 0,
+                client_seq: 1, partition_key: None,
                 headers: vec![], payload: b"hello".to_vec(),
                 event_type_major: 1, event_type_minor: 0,
             }],
@@ -106,13 +110,15 @@ async fn rpc(tcp: &mut TcpStream, codec: &DictCodec, req: QueueRequest) -> Queue
 }
 ```
 
+The produce response's `assigned_versions` is `Vec<Option<u64>>`, one slot per message in order: `Some(version)` for a fresh append, `None` when that `client_seq` was already durable (idempotent duplicate, skipped). Retrying the whole batch after a dropped connection is safe.
+
 For the full wire surface (Ack, Nack, Extend, Stats, TrimQueue, SnapshotNow, AssignRange, Unblock), see [Wire reference](/queue/wire-reference).
 
 ## What the dashboard shows
 
 The Grafana dashboard (`celeriant-queue.json`) renders:
 
-- **Throughput.** Produced, consumed, acked, nacked, parked, expired-leases per second.
+- **Throughput.** Produced, consumed, acked, nacked, parked per second.
 - **Per-queue depth + in-flight.** Labelled by `(org_id, queue_id)`.
 - **Operator health.** Parked, blocked, ack-hole-ranges per queue. The blocked panel turns red on the first non-zero value. A head-of-line block means trim is pinned. Send Unblock.
 - **Tail position.** Monotonic `message_tail_version`. Slope is the produce rate.

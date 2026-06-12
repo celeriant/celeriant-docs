@@ -35,10 +35,10 @@ The queue exports per-queue gauges and cluster-wide counters via the same `metri
 |---|---|
 | `celeriant_queue_produced_total` | Messages durably appended. |
 | `celeriant_queue_consumed_total` | Versions returned in Consume responses. |
-| `celeriant_queue_acked_total` | Acks committed (durable AckBatch event count, not individual versions). |
-| `celeriant_queue_nacked_total` | Nacks committed. |
+| `celeriant_queue_acked_total` | Versions acked. Counted per entry, not per durable AckBatch event. |
+| `celeriant_queue_nacked_total` | Versions nacked. Per entry, same as acked. |
 | `celeriant_queue_parked_total` | Park events committed. |
-| `celeriant_queue_expired_leases_total` | Leases re-folded due to visibility-timeout expiry. |
+| `celeriant_queue_blocked_total` | Block events committed (poison hit `max_delivery_attempts` on a Block/BlockAndDlq queue). The counter twin of the `blocked` gauge. |
 | `celeriant_queue_snapshot_oversize_skipped_total` | Snapshot capture exceeded 12 MiB cap and was skipped. |
 
 ### Sampling
@@ -53,7 +53,6 @@ DeleteQueue zeroes the per-queue gauges in the handler. metrics-rs has no stable
 - `rate(celeriant_queue_parked_total[5m]) > 0` on a queue you don't expect poisons on. Investigate the DLQ.
 - `celeriant_queue_ack_hole_ranges` approaching `max_ack_holes` on a queue. Consumers aren't draining holes. New leases will start failing with `AckHoleCapExceeded`.
 - `celeriant_queue_snapshot_oversize_skipped_total > 0`. A queue's snapshot is too big. Recovery falls back to genesis fold on restart (slow). Probably pathological live-lease cardinality. Investigate.
-- High `rate(celeriant_queue_expired_leases_total[5m])`. Consumers are slow or crashing mid-process. Bump `visibility_timeout_ms` or fix the consumer.
 
 ## Snapshot tier
 

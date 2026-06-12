@@ -14,16 +14,20 @@ No HTTP. No JSON. No JWT. The wire is the same shape Celeriant uses for its own 
 |----:|---|---|
 | 1   | `CreateQueue` | Register a queue with config + DLQ. Idempotent on `(queue_key, dlq, config)`. |
 | 2   | `DeleteQueue` | Best-effort delete. Removes the in-memory projection and zeroes gauges. |
-| 3   | `Produce` | Append messages to a queue. Per-message `(client_id, client_seq)` for idempotency. |
+| 3   | `Produce` | Append messages to a queue. One `client_id` per request, `client_seq` per message for idempotency (see below). |
 | 4   | `Consume` | Lease N messages with an optional long-poll `wait_ms`. |
 | 5   | `Ack` | Terminate-by-success. Batched per-request into one durable AckBatch event. |
-| 6   | `Nack` | Return-to-Available. Optional `delay_ms` delays redelivery. |
-| 7   | `Extend` | Bump the lease deadline by another `visibility_timeout_ms`. Same lease_id, no `delivery_count` bump. |
+| 6   | `Nack` | Return-to-Available. Per-handle `delay_ms` delays redelivery. Batched per-request into one durable NackBatch event, mirroring Ack. |
+| 7   | `Extend` | Bump the lease deadline by `additional_visibility_ms`, capped at `visibility_timeout_ms`. Same lease_id, no `delivery_count` bump. |
 | 8   | `Stats` | Queue state snapshot: tail, trim, in-flight, parked, blocked, ack-hole ranges, range assignments. |
 | 9   | `TrimQueue` | Advance `trim_cursor` to `keep_from_version`. Fold clamps to lowest live lease / blocked / nack-delay. |
 | 10  | `SnapshotNow` | Force-write a Snapshot control event. Useful for tests. Production relies on the 60s timer. |
 | 11  | `AssignRange` | Assign a ring range `(lo, hi)` to a `(group, consumer)`. Idempotent on exact bounds. Partial overlap is `InvalidConfig`. |
 | 12  | `Unblock` | Clear a head-of-line Block for a specific version. |
+
+## Produce idempotency
+
+`ProduceResponse.assigned_versions` is `Vec<Option<u64>>`, one slot per request entry, in submission order. `Some(version)` means newly appended. `None` means the entry's `client_seq` was already durable for that `client_id` and was skipped. `client_seq` is strictly monotonic per `client_id`; same seq = same message. A blind retry of the whole batch self-heals — Kafka-style idempotent producer.
 
 ## Response IDs
 
@@ -42,7 +46,7 @@ Response message types are 100 + verb ID. Errors are `199`.
 | 5 | `AckHoleCapExceeded` | Per-queue ack-hole range count above `max_ack_holes`. |
 | 6 | `InFlightCapExceeded` | Per-queue in-flight above `max_in_flight`. |
 | 7 | `OccConflict` | `Produce.expected_last_version` mismatch. |
-| 8 | `IdempotencyConflict` | `Produce.client_seq` is not strictly greater than prior writes for the same `client_id`. |
+| 8 | `IdempotencyConflict` | Reserved. Pre-v2 a duplicate `client_seq` on Produce errored here; wire-v2 skips duplicates and reports `None` in `assigned_versions` instead. |
 | 9 | `NotLeader` | This shard isn't the leader for the queue's aggregates. |
 | 10 | `SchemaValidation` | Reserved for schema enforcement (Tier 2). |
 | 11 | `PayloadTooLarge` | Frame exceeded `--queue-max-frame-size`. |
@@ -67,6 +71,7 @@ Response message types are 100 + verb ID. Errors are `199`.
 | 9 | `RangeAssign` |
 | 10 | `Block` |
 | 11 | `Unblock` |
+| 12 | `NackBatch` |
 
 ## Snapshot schema
 

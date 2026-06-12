@@ -29,9 +29,9 @@ The Block fold:
 
 - Releases the live lease (frees the in-flight slot).
 - Inserts the version into `blocked_versions`.
-- Pins `trim_cursor` at or before the lowest blocked version. The line stops.
+- Pins `trim_cursor` at or before the lowest blocked version.
 
-The source can keep accepting later messages. Block is per-version, not per-queue. But plan_consume treats blocked versions as Skip. From an operator's perspective: trim doesn't advance, the blocked panel in Grafana turns red, the queue waits for human intervention.
+What consumers see depends on the queue. On a plain queue, Block is pin-and-skip: `plan_consume` skips the blocked version and keeps delivering everything after it. Only trim stops. On an `ordering_required` queue, Block halts the line: `plan_consume` stops at the blocked head and delivers nothing past it, because handing out v+1 while v is poisoned is out-of-order processing — the exact thing the mode exists to prevent. Either way the source keeps accepting later produces; Block is per-version, not per-queue. From an operator's perspective: trim doesn't advance, the blocked panel in Grafana turns red, the queue waits for human intervention.
 
 To resume, send `Unblock { version }`. The fold removes the version from `blocked_versions`. Back to the normal lifecycle. Re-leasable, eligible for trim once acked or parked.
 
