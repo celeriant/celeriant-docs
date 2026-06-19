@@ -12,10 +12,10 @@ Every queue is created with a mandatory `dlq_key`. Another queue, same org. The 
 
 ### `Skip` (the default, SQS-shaped)
 
-The handler does two writes:
+The handler commits one atomic storage write (Celeriant's multi-aggregate DCB write — one fsync) carrying both halves:
 
-1. Append the payload to the DLQ aggregate (durable).
-2. Emit a `Park` control event on the source queue (durable).
+1. The payload, appended to the DLQ aggregate.
+2. A `Park` control event on the source queue.
 
 Source advances past the parked version. Trim eventually drops it from the messages aggregate. DLQ consumers see the payload as a normal message.
 
@@ -37,7 +37,7 @@ To resume, send `Unblock { version }`. The fold removes the version from `blocke
 
 ### `BlockAndDlq`
 
-Both. Handler writes the DLQ payload first (durable), then the Block control event (durable). Source blocks AND a copy is archived in the DLQ.
+Both. One atomic write carries the DLQ payload and the Block control event, exactly like `Skip`'s park. Source blocks AND a copy is archived in the DLQ.
 
 This is the right default when you don't yet know whether you'll want to replay the message or skip past it. You have both the durable copy in the DLQ and the head-of-line stop on the source.
 
@@ -45,9 +45,12 @@ This is the right default when you don't yet know whether you'll want to replay 
 
 Kurrent / EventStoreDB Park is fire-and-forget. The Park event is emitted, the DLQ write happens async, and on persistent write failure Kurrent [logs "Possible message loss" and drops the message](https://github.com/kurrent-io/KurrentDB/issues/2748). Not delivered. Not parked. Not retried.
 
-Celeriant Queue reverses the order. The DLQ payload is appended via `append_dlq_payload().await` first. Only after that future resolves Ok does the Park control event commit. A crash in between leaves the DLQ payload orphaned but readable. On restart the projection sees no Park event. Source queue re-runs the trigger conditions and re-parks. You get a duplicate in the DLQ. Never a loss.
+Celeriant Queue commits both halves in one atomic multi-aggregate write — the failure window Kurrent leaves open doesn't exist in normal operation. The only way the two halves can separate is physical media tearing during a power loss at the WAL tail, and both torn outcomes are handled:
 
-Same ordering for `BlockAndDlq`.
+- **Payload survives, Park lost.** The payload sits orphaned but readable in the DLQ. On restart the projection sees no Park event, the source re-runs the trigger conditions and re-parks. A duplicate in the DLQ; never a loss.
+- **Park survives, payload lost.** The Park event embeds a reference to its paired DLQ write (which DLQ, which idempotency seq). A torn-tail survivor is necessarily the last event in its control log, so boot recovery spots it, rebuilds the payload from the source record — provably not yet trimmed — and idempotently re-issues the write before the node serves a single request. If the payload was actually durable, the re-issue hits the idempotency check and writes nothing.
+
+Same semantics for `BlockAndDlq`.
 
 ## Unblock vs Park as escape hatches
 

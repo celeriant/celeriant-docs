@@ -24,8 +24,8 @@ First build is slow. Full Rust release build of celeriant-queue and all celerian
 | Grafana queue dashboard | `http://localhost:3001/d/celeriant-queue` |
 | Prometheus | `http://localhost:9091` |
 
-::::warning No auth, no TLS on the queue port yet
-Port 10100 is a raw TCP socket. No authentication, no TLS, and `org_id` is whatever the client claims it is. Auth + TLS are tracked (F-B3) and land later. Until then: bind loopback-only or keep the port inside a network you fully trust. Do not expose it to the internet.
+::::warning Secure the port before exposing it
+The queue port supports kTLS termination and API-key identity (the same gate as celeriant-db's client port). A non-loopback bind refuses to boot without BOTH a TLS cert and `api_keys.toml`. The local dev stack above runs WITHOUT auth (loopback only) for convenience. Configure TLS + API keys (and optionally `--tls-cert-reload-interval-secs` for rotation without a restart, see [Operations](/queue/operations)) before exposing the port off loopback. Do not expose an unauthenticated port to the internet.
 ::::
 
 The compose file assumes `celeriant-queue/` and `celeriant-db/` are cloned under the same parent dir. The queue depends on celeriant-db crates via workspace path.
@@ -50,7 +50,7 @@ The binary accepts the entire Celeriant flag surface (TLS, S3, replication) plus
 
 ## First produce / consume
 
-No CLI yet. The canonical wire-call shape lives in `celeriant_queue_integration_tests/tests/common/mod.rs::rpc`. Minimal Rust example:
+For quick operator tasks (create, produce, consume, stats, trim, redrive) use the `celeriant-queue-cli` admin CLI — see [Operations](/queue/operations#admin-cli). For embedding in your own service, the canonical wire-call shape lives in `celeriant_queue_integration_tests/tests/common/mod.rs::rpc`. Minimal Rust example:
 
 ```rust
 use celeriant_queue_core::queue_config::QueueConfig;

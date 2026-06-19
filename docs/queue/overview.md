@@ -4,7 +4,7 @@ title: What Celeriant Queue is
 
 # Celeriant Queue
 
-A message queue bolted onto Celeriant's storage engine. Same thread-per-core glommio runtime, same WAL, same fsync-before-ack discipline. The queue layer adds consumer groups, head-of-line poison handling, sticky parallel routing, and a first-class Unblock verb.
+A message queue bolted onto Celeriant's storage engine. Same thread-per-core glommio runtime, same WAL, same fsync-before-ack discipline. The queue layer adds head-of-line poison handling, `ordering_required` serial delivery, and a first-class Unblock verb.
 
 Not a separate process. The queue listener runs as a `PerShardExtension` inside the Celeriant binary's executor pool. Every core that owns aggregates also serves the queue verbs that touch them. Produce and the WAL fsync are zero network hops apart.
 
@@ -32,14 +32,16 @@ Celeriant Queue picks all of them. The architecture is the unlock: every queue v
   - `Block`. Head-of-line block, trim pinned, operator sends Unblock to advance.
   - `BlockAndDlq`. Both. Archive AND stop the line.
 - **First-class Unblock verb.** Distinct from Park. Park means "this message is dead, route to DLQ." Unblock means "this message is fine, resume the line."
-- **`ordering_required` when you need it.** Single-active-consumer at the projection layer. Enforced even across racing Consume requests on separate connections.
-- **Sticky parallel consumers.** `partition_key` blake3-hashed into a u16 ring, ranges assigned to consumers. Reassignment uses a mandatory drain protocol so per-key ordering survives ownership transfer.
+- **`ordering_required` when you need it.** Single-active-consumer at the projection layer. Enforced even across racing Consume requests on separate connections. A blocked head halts the line until you send Unblock.
 - **Per-tenant queue count quota.** Synchronous TOCTOU-safe reservation.
 - **Operator visibility.** Per-queue depth, in-flight, ack-hole ranges, parked, blocked, tail. Plus throughput counters. All via the same Prometheus endpoint Celeriant uses.
 
 ## What you don't get yet
 
-Pull only. No webhooks, no push subscriptions. No native client crate (the wire is stable; copy the integration-test RPC helper). No SQS or AMQP compat. The per-tenant quota is per-shard, not cluster-wide, so the cluster effective cap is `cap × num_shards`. All tracked in followup docs.
+- **Sticky parallel routing is not shipped for v1.** Partition-key routing across a consumer group (the `AssignRange` verb, the drain-on-reassignment protocol) exists on the wire and in the projection, but the CHARTER parks it: it has known correctness holes (drain deadlock on an expired prior-owner lease, range-split bypass, consumer-identity ignoring the group id) that are not fixed yet. Do not rely on it. It returns in the scale phase. See [Sticky routing and ordering](/queue/sticky-and-ordering).
+- Pull only. No webhooks, no push subscriptions.
+- No SQS or AMQP compat.
+- The per-tenant quota is per-shard, not cluster-wide, so the cluster effective cap is `cap × num_shards`.
 
 ## When to reach for it
 
@@ -49,7 +51,9 @@ Reach for the queue when:
 
 1. You need fan-out work distribution with at-least-once delivery and observable failure (DLQ, retry counts, head-of-line containment).
 2. A specific message must be processed by exactly one consumer at a time with explicit ack semantics.
-3. You need partition-key sticky routing across a consumer group with safe rebalancing.
+3. You need strict in-order processing of a command stream (`ordering_required`).
+
+Don't reach for it yet if you need partition-key sticky routing across a consumer group. That's parked for v1 (see above).
 
 Don't reach for the queue when:
 
