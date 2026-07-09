@@ -38,7 +38,7 @@ It scales down hard. Two i4i.large cost about **$300 a month** and still hold **
 
 ## Why it is this fast
 
-It is not clever code; it is architectural alignment. An i4i.16xlarge is 64 cores of NVMe and io_uring, and many databases were designed before that hardware existed and leave it idle. Celeriant is built backward from it: Direct I/O, thread-per-core, batched fsync and replication, kernel TLS (kTLS) offload. See [Durability and safety](/concepts/durability-and-safety) for the mechanism.
+An i4i.16xlarge is 64 cores of NVMe and io_uring, and many databases were designed before that hardware existed and leave it idle. Celeriant is built backward from it: Direct I/O, thread-per-core, batched fsync and replication, kernel TLS (kTLS) offload. See [Durability and safety](/concepts/durability-and-safety) for the mechanism.
 
 ## Reproduce it
 

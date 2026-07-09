@@ -18,7 +18,7 @@ If you have time, watch Sara Pellegrini & Milan Savic's presentation (https://ww
 
 A single atomic write spans one shard. That is the line. Cross-shard atomic writes would reintroduce the distributed transaction this database exists to avoid, so the engine rejects them outright (error 9001, `ShardRoutingMultipleShards`).
 
-The good news: which aggregates share a shard is something you decide. Placement is `id % shard_count`, where `id` is one part of the aggregate key chosen by the routing rule set at cluster init. Plain `%` on an id you control, not a hash that scrambles things. So you place co-committed aggregates onto the same shard on purpose.
+Which aggregates share a shard is something you decide. Placement is `id % shard_count`, where `id` is one part of the aggregate key chosen by the routing rule set at cluster init. Plain `%` on an id you control, not a hash that scrambles things. So you place co-committed aggregates onto the same shard on purpose.
 
 Pick the rule that matches the invariants you actually enforce together:
 

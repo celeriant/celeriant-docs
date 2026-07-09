@@ -12,11 +12,11 @@ The outbox is there to paper over one flaw: you cannot atomically update your st
 
 ## And it still does not enforce invariants
 
-The outbox keeps state and events aligned inside one service. Across services it does not help. A service validates the next event against state assembled from topics it consumes, and those topics lag. Two services can clear validation against a stale view at the same time, both append, and one of them silently violates an invariant. No amount of outbox tuning fixes this. The log is unconditional by design.
+The outbox keeps state and events aligned inside one service. Across services it does not help. A service validates the next event against state assembled from topics it consumes, and those topics lag. Two services validate against stale views of each other, both pass, both writes land, and the log now contains a state no validator would have allowed. No amount of outbox tuning fixes this: Kafka accepts every append, no conditions.
 
 ## Celeriant flips the order
 
-The event is the write. You append the event to Celeriant as the source of truth, with a [conditional write](/concepts/optimistic-concurrency) that enforces your invariant, and you project state from the log afterward, into the same Postgres you already run. There is no second write to keep in sync, so there is no outbox, no CDC, and no DLQ. The dual-write problem does not exist when there is only one write.
+The event is the write. You append the event to Celeriant as the source of truth, with a [conditional write](/concepts/optimistic-concurrency) that enforces your invariant, and you project state from the log afterward, into the same Postgres you already run. There is no second write to keep in sync, so the outbox table, the Debezium deployment, and the DLQ go in the bin. The dual-write problem does not exist when there is only one write.
 
 ## What maps to what
 

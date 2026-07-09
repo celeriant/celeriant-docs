@@ -8,9 +8,9 @@ Celeriant is an append-only event store dedicated to the write side of [CQRS](ht
 
 ## The problem it solves
 
-Event sourcing lives or dies on one question: can I append this event only if nobody changed the aggregate under me?
+Event sourcing rests on one question: can I append this event only if nobody changed the aggregate under me?
 
-Postgres can answer it, with a row lock and a conditional insert. Then it falls over around 10k to 20k conditional writes a second: commit-fsync latency, lock contention on hot aggregates, and vacuum debt building underneath.
+Postgres can answer it, with a row lock and a conditional insert, and holds to around 10k to 20k conditional writes a second. Past that, every commit pays an fsync, hot aggregates serialise on their row locks, and autovacuum falls behind a table that only ever grows.
 
 Kafka plays a different game. Each microservice has its own Postgres, operations update local state and write an event to a local outbox table, then a CDC pipeline picks them up and publishes them onto topics for other services to consume. Throughput solved. Inside one service the conditional write still works, because Postgres is doing it.
 

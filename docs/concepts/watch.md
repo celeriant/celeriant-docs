@@ -22,7 +22,7 @@ You scope a watch by `Orgs`, `AggregateTypes`, or `Aggregates`. The scope is not
 
 `RequestedLatency` is a cap, not a deadline. The server coalesces bursts of changes inside that window into fewer notifications, trading immediacy for less chatter. Coalescing merges; it never drops. The notification's `ToAggregateVersion` only advances, so re-reading from your cursor never misses an event. Treat this as eventually consistent with a bounded lag: between a write committing and the notification firing, there is a real (sub-window) gap. If you need "the user sees the write the instant it happens" semantics, do not wait on a watch - read the aggregate inline.
 
-A watch that spans more than one shard fans out under the hood; the client library opens a connection per shard and merges the results, so you see one stream. The server enforces a max latency via `--watch-max-requested-latency-ms`; exceed it and you get 8001 (`LatencyTooHigh`).
+A watch that spans more than one shard fans out: the client library opens a connection per shard and merges the results, so you see one stream. The server enforces a max latency via `--watch-max-requested-latency-ms`; exceed it and you get 8001 (`LatencyTooHigh`).
 
 ## Catch up, then follow
 

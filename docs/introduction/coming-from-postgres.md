@@ -6,11 +6,9 @@ title: Coming from Postgres
 
 You already did the hard part. You write events first, the events are your source of truth, and you project state from them: an events table, a version column for optimistic concurrency, indexes on aggregate id and event type, maybe [Marten](https://martendb.io/) on top. The model is right. Celeriant does not ask you to change it; it changes the engine underneath it.
 
-It is correct, and it works, right up until it does not.
-
 ## Where it breaks
 
-The conditional insert that enforces your invariant is exactly the operation Postgres struggles to do at volume. Around 10k to 20k conditional writes a second you hit a wall: commit-fsync latency on every write, lock contention on hot aggregates, MVCC bloat, and the vacuum debt that builds underneath and turns into runaway IOPS. The model is right; the engine was not built to be a high-throughput append-only log.
+The conditional insert that enforces your invariant is exactly the operation Postgres struggles to do at volume. Around 10k to 20k conditional writes a second you hit a wall: commit-fsync latency on every write, lock contention on hot aggregates, MVCC bloat, and the vacuum debt that builds underneath and turns into runaway IOPS. The engine was not built to be a high-throughput append-only log.
 
 Celeriant keeps the model and changes the engine: thread-per-core, Direct I/O, batched fsync, and a storage design whose [memory is bounded by the hot working set](/concepts/durability-and-safety), not total cardinality. See the [Performance](/reference/performance) numbers.
 
