@@ -1,41 +1,13 @@
-# Website
+# celeriant-docs
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
-
-## Installation
+Source for [docs.celeriant.io](https://docs.celeriant.io). Docusaurus, docs only, no blog.
 
 ```bash
-yarn
+yarn         # install
+yarn start   # dev server on :3000
+yarn build   # static site into build/
 ```
 
-## Local Development
+Pages live in `docs/`. Nav order is hand-written in `sidebars.ts`.
 
-```bash
-yarn start
-```
-
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-## Build
-
-```bash
-yarn build
-```
-
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
-
-## Deployment
-
-Using SSH:
-
-```bash
-USE_SSH=true yarn deploy
-```
-
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> yarn deploy
-```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+The prose is LLM generated, reviewed by me, and correct. The site says so on every page. Found something wrong anyway? Open an issue.

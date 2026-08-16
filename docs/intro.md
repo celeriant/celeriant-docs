@@ -20,3 +20,9 @@ Celeriant enforces business invariants at write time across many streams: optimi
 :::info Pre-release
 Celeriant is pre-1.0. The wire format can still change between releases, and the open-source binaries ship with the Apache-2.0 release. If you need stability today, see [when not to use it](/introduction/when-not-to-use).
 :::
+
+## Why every page says LLM generated
+
+An LLM wrote the prose on this site. I read every page and the content is correct: each load-bearing claim traces back to the Celeriant source, and anything that drifts gets fixed.
+
+What I have not done is rewrite it all in my own voice. Building the database wins that fight for my time, every week. Sorry for the machine prose. If you do find something wrong, [open an issue](https://github.com/celeriant/celeriant-docs/issues) and I will fix it.
