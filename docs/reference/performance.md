@@ -37,10 +37,10 @@ Peak clean throughput, meaning the highest level that ran with zero client-visib
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | **Flagship** | 2x i4i.metal (128 vCPU) | 8x NVMe RAID0 | **1,057,417** | 60,000 | 48 ms | 108 ms | ~$3,700/mo spot |
 | Large | 2x i4i.16xlarge (64 vCPU) | 4x NVMe RAID0 | 466,640 | 60,000 | 97 ms | 264 ms | ~$9,600/mo |
-| Mid | 2x i4i.8xlarge (32 vCPU) | 2x NVMe RAID0 | 409,676 | 24,000 | 51 ms | 97 ms | ~$4,800/mo |
+| Mid | 2x i4i.8xlarge (32 vCPU) | 2x NVMe RAID0 | 446,667 | 24,000 | 44 ms | 109 ms | ~$4,800/mo |
 | **Entry** | 2x c7g.xlarge (4 vCPU ARM) | stock gp3 | **67,720** | 8,000 | 113 ms | 165 ms | **~$295/mo** |
 
-The 32-core box gets 88% of the 64-core box's throughput for half the money. Doubling vCPUs from 32 to 64 buys 14%; going to 64 physical cores on i4i.metal buys 2.3x on top of that. Cores that share an SMT sibling are not cores.
+The 32-core box gets 96% of the 64-core box's throughput for half the money. Doubling vCPUs from 32 to 64 buys 4%; going to 64 physical cores on i4i.metal buys 2.3x on top of that. Cores that share an SMT sibling are not cores.
 
 Every tier has a ceiling and does not degrade gracefully past it. The ARM pair runs clean to 8,000 connections and sheds tens of thousands of errors at 16,000. Know your tier's number and stay under it.
 
